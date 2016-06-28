@@ -20,6 +20,8 @@
             <artifactId>competition-2016</artifactId>
             <version>[1.0.0,)</version>
         </dependency>
+
+        <!-- you can add new Maven dependencies of your choice -->
     </dependencies>
 
     <build>
