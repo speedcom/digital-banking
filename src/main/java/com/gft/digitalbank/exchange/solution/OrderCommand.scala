@@ -4,21 +4,14 @@ sealed trait OrderCommand {
   def messageType: MessageType
 }
 
-sealed trait OrderBase extends OrderCommand {
-  def id: OrderId
-  def timestamp: Timestamp
-  def broker: Broker
-  def side: Side
-}
-
 case class Bid(id: OrderId,
                timestamp: Timestamp,
                broker: Broker,
                client: Client,
                product: Product,
-               details: Details) extends OrderBase {
-  override val side: Side = Side.Buy
+               details: Details) extends OrderCommand {
   override val messageType: MessageType = MessageType.Order
+  val side: Side = Side.Buy
 }
 
 case class Sell(id: OrderId,
@@ -26,9 +19,9 @@ case class Sell(id: OrderId,
                 broker: Broker,
                 client: Client,
                 product: Product,
-                details: Details) extends OrderBase {
-  override val side: Side = Side.Sell
+                details: Details) extends OrderCommand {
   override val messageType: MessageType = MessageType.Order
+  val side: Side = Side.Sell
 }
 
 case class Modify(id: OrderId,
