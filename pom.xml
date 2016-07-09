@@ -53,7 +53,7 @@
 
             <activation>
                 <!-- if you want to deliver your solution in Scala replace false with true in the below line -->
-                <activeByDefault>false</activeByDefault>
+                <activeByDefault>true</activeByDefault>
             </activation>
 
             <dependencies>
