@@ -1,12 +1,13 @@
 package com.gft.digitalbank.exchange.solution
+
 import java.util
 import javax.jms._
 import javax.naming.InitialContext
 
 import com.gft.digitalbank.exchange.Exchange
+import com.gft.digitalbank.exchange.listener.ProcessingListener
 
 import scala.collection.JavaConverters._
-import com.gft.digitalbank.exchange.listener.ProcessingListener
 
 class StockExchange extends Exchange {
 
