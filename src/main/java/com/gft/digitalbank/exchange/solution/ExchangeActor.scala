@@ -2,16 +2,17 @@ package com.gft.digitalbank.exchange.solution
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import com.gft.digitalbank.exchange.listener.ProcessingListener
-import com.gft.digitalbank.exchange.model.SolutionResult
-import spray.json.JsObject
+import com.gft.digitalbank.exchange.model.{ OrderBook, SolutionResult, Transaction }
+
+import scala.collection.JavaConverters._
 
 class ExchangeActor extends Actor with ActorLogging {
 
-  import context.dispatcher
-
   var processingListener: Option[ProcessingListener] = None
   var brokers: Set[String]                           = Set.empty
-  val books = collection.mutable.Map.empty[String, ActorRef]
+  val books        = collection.mutable.Map.empty[String, ActorRef]
+  val transactions = collection.mutable.Buffer.empty[Transaction]
+  val orderBooks   = collection.mutable.Map.empty[String, OrderBook]
 
   override def receive: Receive = {
     case cmd: ExchangeCommand => handleExchangeCommand(cmd)
@@ -30,27 +31,38 @@ class ExchangeActor extends Actor with ActorLogging {
             gatherResults()
           }
         }
+      case RecordTransaction(product, transaction) => transactions.append(transaction)
+      case RecordOrderBook(product, orderBook) => {
+          orderBooks.update(product, orderBook)
+
+          if (orderBooks.size == books.size) {
+            processingListener.foreach(
+                _.processingDone(
+                    SolutionResult.builder().orderBooks(orderBooks.values.toList.asJava).transactions(transactions.asJava).build()
+                ))
+          }
+        }
       case ProcessMessage(broker, orderCommand) =>
         handleOrderCommand(orderCommand)
       case Start => println("Starting")
     }
   }
 
-  def handleOrderCommand(orderCommand: OrderCommand): Unit = {
+  private[this] def bookActorRef(product: String): ActorRef = {
+    books.getOrElseUpdate(product, context.actorOf(Props(classOf[BookActor], self, product)))
+  }
+
+  private[this] def handleOrderCommand(orderCommand: OrderCommand): Unit = {
     orderCommand match {
-      case b: Buy  => books.getOrElseUpdate(b.product, context.actorOf(Props(classOf[BookActor], b.product))) ! b
-      case b: Sell => books.getOrElseUpdate(b.product, context.actorOf(Props(classOf[BookActor], b.product))) ! b
+      case b: Buy  => bookActorRef(b.product) ! b
+      case s: Sell => bookActorRef(s.product) ! s
       case x       => ???
     }
   }
 
-  def gatherResults(): Unit = {
+  private[this] def gatherResults(): Unit = {
     books.values.foreach {
       _ ! GetTransactions
-    }
-
-    processingListener.foreach { listener =>
-      listener.processingDone(SolutionResult.builder().build())
     }
   }
 }
@@ -60,5 +72,7 @@ case class Register(processingListener: ProcessingListener)               extend
 case class Brokers(brokers: Set[String])                                  extends ExchangeCommand
 case class ProcessMessage(fromBroker: String, orderCommand: OrderCommand) extends ExchangeCommand
 case class BrokerStopped(broker: String)                                  extends ExchangeCommand
+case class RecordTransaction(product: String, transaction: Transaction)   extends ExchangeCommand
+case class RecordOrderBook(product: String, orderBook: OrderBook)         extends ExchangeCommand
 
 case object Start extends ExchangeCommand
