@@ -1,8 +1,8 @@
 package com.gft.digitalbank.exchange.solution
 
-import javax.jms.{Message, MessageConsumer, MessageListener, TextMessage}
+import javax.jms.{ Message, MessageConsumer, MessageListener, TextMessage }
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{ Actor, ActorRef }
 import spray.json._
 
 import scala.util.Try
@@ -26,7 +26,10 @@ class ConsumerActor(messageConsumer: MessageConsumer, destination: String, excha
         val value = Unmarshall.jsonToJsonCommand(json)
         println(s"Decoded $json as $value")
         value match {
-          case Left(ShutdownNotification(broker)) => exchangeActorRef ! BrokerStopped(broker.split("-").last)
+          case Left(ShutdownNotification(broker)) =>
+            exchangeActorRef ! BrokerStopped(broker.split("-").last)
+            messageConsumer.close()
+            context.stop(self)
           case Right(orderCommand) => exchangeActorRef ! ProcessMessage(orderCommand)
         }
       }.failed.foreach(_.printStackTrace())
