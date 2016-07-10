@@ -2,6 +2,8 @@ package com.gft.digitalbank.exchange.solution
 
 sealed trait OrderCommand
 
+case object ShutdownNotification
+
 case class Buy(id: Long,
                timestamp: Long,
                broker: String,
@@ -27,7 +29,5 @@ case class Cancel(id: Long,
                   broker: String,
                   cancelledOrderId: String
                  ) extends OrderCommand
-
-case class ShutdownNotification(broker:String)
 
 case class Details(amount: Int, price: BigDecimal)

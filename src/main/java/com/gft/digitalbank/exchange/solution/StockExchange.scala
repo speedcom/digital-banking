@@ -31,16 +31,7 @@ class StockExchange extends Exchange {
     uniqueDestinations.foreach { destination =>
       val queue           = session.createQueue(destination)
       val messageConsumer = session.createConsumer(queue)
-      messageConsumer.setMessageListener(
-          new MessageListener {
-        override def onMessage(message: Message): Unit = message match {
-          case txt: TextMessage =>
-            val json = txt.getText.parseJson.asJsObject
-            exchangeActorRef.tell(ProcessMessage(destination, json), ActorRef.noSender)
-          case other =>
-            throw new IllegalArgumentException(s"Received non-TextMessage from ActiveMQ: $other")
-        }
-      })
+      system.actorOf(Props(classOf[BrokerActor], messageConsumer, destination, exchangeActorRef))
     }
   }
 

@@ -30,15 +30,8 @@ class ExchangeActor extends Actor with ActorLogging {
             gatherResults()
           }
         }
-      case ProcessMessage(broker, json) =>
-        val f = Unmarshall.jsonToJsonCommand(json)
-        f.onSuccess {
-          case Left(ShutdownNotification(broker)) => self ! BrokerStopped(broker)
-          case Right(order)                       => handleOrderCommand(order)
-        }
-        f.onFailure {
-          case t => t.printStackTrace()
-        }
+      case ProcessMessage(broker, orderCommand) =>
+        handleOrderCommand(orderCommand)
       case Start => println("Starting")
     }
   }
@@ -63,10 +56,9 @@ class ExchangeActor extends Actor with ActorLogging {
 }
 
 sealed trait ExchangeCommand
-case class Register(processingListener: ProcessingListener)   extends ExchangeCommand
-case class Brokers(brokers: Set[String])                      extends ExchangeCommand
-case class ProcessMessage(fromBroker: String, json: JsObject) extends ExchangeCommand
-
-case class BrokerStopped(broker: String) extends ExchangeCommand
+case class Register(processingListener: ProcessingListener)               extends ExchangeCommand
+case class Brokers(brokers: Set[String])                                  extends ExchangeCommand
+case class ProcessMessage(fromBroker: String, orderCommand: OrderCommand) extends ExchangeCommand
+case class BrokerStopped(broker: String)                                  extends ExchangeCommand
 
 case object Start extends ExchangeCommand
