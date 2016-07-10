@@ -14,10 +14,10 @@ object Unmarshall {
   private[this] implicit val modifyReader: JsonReader[Modify]   = jsonFormat5(Modify.apply)
   private[this] implicit val cancelReader: JsonReader[Cancel]   = jsonFormat4(Cancel.apply)
 
-  def jsonToJsonCommand(jsObject: JsObject): Either[ShutdownNotification.type, OrderCommand] = {
+  def jsonToJsonCommand(jsObject: JsObject): Either[ShutdownNotification, OrderCommand] = {
     val commandType = jsObject.fields.getOrElse(messageTypeField, throw new IllegalArgumentException(s"Message doesn't contain field '$messageTypeField"))
     commandType match {
-      case JsString("SHUTDOWN_NOTIFICATION") => Left(ShutdownNotification)
+      case JsString("SHUTDOWN_NOTIFICATION") => Left(ShutdownNotification(jsObject.fields("broker").convertTo[String]))
       case _                                 => Right(jsonToOrderCommand(jsObject))
     }
   }

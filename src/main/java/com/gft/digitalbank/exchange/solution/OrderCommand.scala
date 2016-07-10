@@ -1,8 +1,10 @@
 package com.gft.digitalbank.exchange.solution
 
-sealed trait OrderCommand
+sealed trait OrderCommand{
+  def broker: String
+}
 
-case object ShutdownNotification
+case class ShutdownNotification(broker:String)
 
 case class Buy(id: Long,
                timestamp: Long,
