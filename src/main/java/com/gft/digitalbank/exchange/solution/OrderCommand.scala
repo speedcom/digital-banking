@@ -30,4 +30,4 @@ case class Cancel(id: Long,
                   cancelledOrderId: String
                  ) extends OrderCommand
 
-case class Details(amount: Int, price: BigDecimal)
+case class Details(amount: Int, price: Int)

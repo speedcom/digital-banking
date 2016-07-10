@@ -36,9 +36,10 @@ class ExchangeActor extends Actor with ActorLogging {
           orderBooks.update(product, orderBook)
 
           if (orderBooks.size == books.size) {
+            val nonEmptyBooks = orderBooks.values.filterNot(o => o.getSellEntries.isEmpty && o.getBuyEntries.isEmpty).asJavaCollection
             processingListener.foreach(
                 _.processingDone(
-                    SolutionResult.builder().orderBooks(orderBooks.values.toList.asJava).transactions(transactions.asJava).build()
+                    SolutionResult.builder().orderBooks(nonEmptyBooks).transactions(transactions.asJava).build()
                 ))
           }
         }
