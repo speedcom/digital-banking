@@ -1,0 +1,3 @@
+--style defaultWithAlign # For pretty alignment.
+--maxColumn 160 
+--spacesInImportCurlyBraces true
