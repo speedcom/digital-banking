@@ -20,6 +20,23 @@
             <artifactId>competition-2016</artifactId>
             <version>[1.0.0,)</version>
         </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor_2.11</artifactId>
+            <version>2.4.8</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.spray</groupId>
+            <artifactId>spray-json_2.11</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.fommil</groupId>
+            <artifactId>spray-json-shapeless_2.11</artifactId>
+            <version>1.2.0</version>
+        </dependency>
 
         <!-- you can add new Maven dependencies of your choice -->
     </dependencies>
