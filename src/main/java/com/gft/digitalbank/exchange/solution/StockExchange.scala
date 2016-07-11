@@ -7,7 +7,6 @@ import javax.naming.InitialContext
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import com.gft.digitalbank.exchange.Exchange
 import com.gft.digitalbank.exchange.listener.ProcessingListener
-import spray.json._
 
 import scala.collection.JavaConverters._
 
