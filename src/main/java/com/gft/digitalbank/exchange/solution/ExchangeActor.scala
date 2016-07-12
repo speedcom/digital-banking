@@ -50,10 +50,10 @@ class ExchangeActor extends Actor with ActorLogging {
                 ))
           }
         }
-      case ProcessMessage(orderCommand) =>
-        activeBrokers += orderCommand.broker
-        println(s"Active brokers: ${ activeBrokers }")
-        handleOrderCommand(orderCommand)
+//      case ProcessMessage(orderCommand) =>
+//        activeBrokers += orderCommand.broker
+//        println(s"Active brokers: ${ activeBrokers }")
+//        handleOrderCommand(orderCommand)
       case Start => println("Starting")
     }
   }
@@ -61,12 +61,12 @@ class ExchangeActor extends Actor with ActorLogging {
   private[this] def bookActorRef(product: String): ActorRef = {
     books.getOrElseUpdate(product, context.actorOf(Props(classOf[BookActor], self, product), product))
   }
-
-  private[this] def handleOrderCommand(orderCommand: OrderCommand): Unit = orderCommand match {
-    case b: Buy  => bookActorRef(b.product) ! b
-    case s: Sell => bookActorRef(s.product) ! s
-    case x       => ???
-  }
+//
+//  private[this] def handleOrderCommand(orderCommand: OrderCommand): Unit = orderCommand match {
+//    case b: Buy  => bookActorRef(b.product) ! b
+//    case s: Sell => bookActorRef(s.product) ! s
+//    case x       => ???
+//  }
 
   private[this] def gatherResults(): Unit = {
     println("Will gather results as all brokers are gone")
@@ -79,7 +79,7 @@ class ExchangeActor extends Actor with ActorLogging {
 sealed trait ExchangeCommand
 case class Register(processingListener: ProcessingListener)             extends ExchangeCommand
 case class Brokers(brokers: Set[String])                                extends ExchangeCommand
-case class ProcessMessage(orderCommand: OrderCommand)                   extends ExchangeCommand
+//case class ProcessMessage(orderCommand: OrderCommand)                   extends ExchangeCommand
 case class BrokerStopped(broker: String)                                extends ExchangeCommand
 case class RecordTransaction(product: String, transaction: Transaction) extends ExchangeCommand
 case class RecordOrderBook(product: String, orderBook: OrderBook)       extends ExchangeCommand
