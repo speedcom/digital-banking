@@ -9,7 +9,7 @@ import spray.json._
 
 import scala.util.{Failure, Try}
 
-object Unmarshall {
+object Unmarshaller {
 
   def unapply(txt: TextMessage): Try[BrokerMessage] = {
     val json = txt.getText.parseJson.asJsObject
