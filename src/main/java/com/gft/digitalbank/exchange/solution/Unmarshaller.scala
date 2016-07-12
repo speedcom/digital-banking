@@ -11,7 +11,7 @@ import scala.util.{Failure, Try}
 
 object Unmarshaller {
 
-  def unapply(txt: TextMessage): Try[BrokerMessage] = {
+  def apply(txt: TextMessage): Try[BrokerMessage] = {
     val json = txt.getText.parseJson.asJsObject
 
     json.getFields("messageType").headOption match {

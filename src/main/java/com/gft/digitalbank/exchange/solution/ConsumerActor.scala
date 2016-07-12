@@ -13,7 +13,7 @@ class ConsumerActor(messageConsumer: MessageConsumer, destination: String, excha
 
   override def receive: Receive = {
     case txt: TextMessage =>
-      Unmarshaller.unapply(txt) match {
+      Unmarshaller(txt) match {
         case Success(po: PositionOrder)        => ???
         case Success(co: CancellationOrder)    => ???
         case Success(mo: ModificationOrder)    => ???
