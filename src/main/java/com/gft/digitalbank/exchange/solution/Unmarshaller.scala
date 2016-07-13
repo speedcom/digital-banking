@@ -24,7 +24,7 @@ object Unmarshaller {
   }
 
   @inline
-  private def json2PositionOrder(json: JsObject): PositionOrder = json.getFields("messageType", "side", "id", "timestamp", "broker", "client", "product", "details") match {
+  final private def json2PositionOrder(json: JsObject): PositionOrder = json.getFields("messageType", "side", "id", "timestamp", "broker", "client", "product", "details") match {
     case Seq(JsString(_), JsString(side), JsNumber(id), JsNumber(timestamp), JsString(broker), JsString(client), JsString(product), Seq(JsNumber(amount), JsNumber(price))) =>
       new PositionOrder.PositionOrderBuilder()
         .timestamp(timestamp.toLong)
@@ -38,7 +38,7 @@ object Unmarshaller {
   }
 
   @inline
-  private def json2CancellationOrder(json: JsObject): CancellationOrder = json.getFields("messageType", "id", "timestamp", "broker", "cancelledOrderId") match {
+  final private def json2CancellationOrder(json: JsObject): CancellationOrder = json.getFields("messageType", "id", "timestamp", "broker", "cancelledOrderId") match {
     case Seq(JsString(_), JsNumber(id), JsNumber(timestamp), JsString(broker), JsNumber(cancelledOrderId)) =>
       new CancellationOrder.CancellationOrderBuilder()
         .messageType(MessageType.CANCEL)
@@ -50,7 +50,7 @@ object Unmarshaller {
   }
 
   @inline
-  private def json2ShutdownNotification(json: JsObject): ShutdownNotification = json.getFields("messageType", "timestamp", "id", "broker") match {
+  final private def json2ShutdownNotification(json: JsObject): ShutdownNotification = json.getFields("messageType", "timestamp", "id", "broker") match {
     case Seq(JsString(_), JsNumber(timestamp), JsNumber(id), JsString(broker)) =>
       new ShutdownNotification.ShutdownNotificationBuilder()
         .timestamp(timestamp.toLong)
@@ -60,7 +60,7 @@ object Unmarshaller {
   }
 
   @inline
-  private def json2ModificationOrder(json: JsObject): ModificationOrder = json.getFields("messageType", "id", "timestamp", "broker", "modifiedOrderId", "details") match {
+  final private def json2ModificationOrder(json: JsObject): ModificationOrder = json.getFields("messageType", "id", "timestamp", "broker", "modifiedOrderId", "details") match {
     case Seq(JsString(_), JsNumber(id), JsNumber(timestamp), JsString(broker), JsNumber(modifiedOrderId), Seq(JsNumber(amount), JsNumber(price))) =>
       new ModificationOrder.ModificationOrderBuilder()
         .timestamp(timestamp.toLong)
