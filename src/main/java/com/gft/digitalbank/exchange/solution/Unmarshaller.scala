@@ -27,7 +27,6 @@ object Unmarshaller {
 
   private implicit class JsonOps(json: JsObject) {
 
-    @inline
     final def toPositionOrder: PositionOrderCommand = json.getFields("messageType", "side", "id", "timestamp", "broker", "client", "product", "details") match {
       case Seq(JsString(_), JsString(side), JsNumber(id), JsNumber(timestamp), JsString(broker), JsString(client), JsString(product), JsObject(details)) =>
         (details("amount"), details("price")) match {
@@ -44,7 +43,6 @@ object Unmarshaller {
         }
     }
 
-    @inline
     final def toCancellationOrder: CancellationOrderCommand = json.getFields("messageType", "id", "timestamp", "broker", "cancelledOrderId") match {
       case Seq(JsString(_), JsNumber(id), JsNumber(timestamp), JsString(broker), JsNumber(cancelledOrderId)) =>
         CancellationOrderCommand(CancellationOrder.builder()
@@ -56,7 +54,6 @@ object Unmarshaller {
           .build())
     }
 
-    @inline
     final def toShutdownNotification: ShutdownOrderCommand = json.getFields("messageType", "timestamp", "id", "broker") match {
       case Seq(JsString(_), JsNumber(timestamp), JsNumber(id), JsString(broker)) =>
         ShutdownOrderCommand(ShutdownNotification.builder()
@@ -66,7 +63,6 @@ object Unmarshaller {
           .build())
     }
 
-    @inline
     final def toModificationOrder: ModificationOrderCommand = json.getFields("messageType", "id", "timestamp", "broker", "modifiedOrderId", "details") match {
       case Seq(JsString(_), JsNumber(id), JsNumber(timestamp), JsString(broker), JsNumber(modifiedOrderId), JsObject(details)) =>
         (details("amount"), details("price")) match {
