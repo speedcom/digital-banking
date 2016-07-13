@@ -4,7 +4,7 @@ import java.util
 import javax.jms._
 import javax.naming.InitialContext
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ActorRef, ActorSystem, Props}
 import com.gft.digitalbank.exchange.Exchange
 import com.gft.digitalbank.exchange.listener.ProcessingListener
 
@@ -21,14 +21,14 @@ class StockExchange extends Exchange {
   val exchangeActorRef = system.actorOf(Props[ExchangeActor], "exchange")
 
   override def register(processingListener: ProcessingListener): Unit = {
-    exchangeActorRef.tell(Register(processingListener), ActorRef.noSender)
+    exchangeActorRef.tell(ExchangeActor.Register(processingListener), ActorRef.noSender)
   }
 
   override def setDestinations(destinations: util.List[String]): Unit = {
     val uniqueDestinations = destinations.asScala.toSet
     val uniqueBrokers      = uniqueDestinations.map(_.split("-").last)
 
-    exchangeActorRef.tell(Brokers(uniqueBrokers), ActorRef.noSender)
+    exchangeActorRef.tell(ExchangeActor.Brokers(uniqueBrokers), ActorRef.noSender)
 
     uniqueDestinations.foreach { destination =>
       val queue           = session.createQueue(destination)
@@ -38,7 +38,7 @@ class StockExchange extends Exchange {
   }
 
   override def start(): Unit = {
-    exchangeActorRef.tell(Start, ActorRef.noSender)
+    exchangeActorRef.tell(ExchangeActor.Start, ActorRef.noSender)
     connection.start()
   }
 }
