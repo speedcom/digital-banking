@@ -1,8 +1,10 @@
 package com.gft.digitalbank.exchange.solution
 
 import javax.jms.{Message, MessageConsumer, MessageListener, TextMessage}
+
 import akka.actor.{Actor, ActorRef}
-import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, ShutdownNotification}
+import com.gft.digitalbank.exchange.solution.OrderCommand._
+
 import scala.util.{Failure, Success}
 
 class ConsumerActor(messageConsumer: MessageConsumer, destination: String, exchangeActorRef: ActorRef) extends Actor {
@@ -14,14 +16,14 @@ class ConsumerActor(messageConsumer: MessageConsumer, destination: String, excha
   override def receive: Receive = {
     case txt: TextMessage =>
       Unmarshaller(txt) match {
-        case Success(po: PositionOrder)        => ???
-        case Success(co: CancellationOrder)    => ???
-        case Success(mo: ModificationOrder)    => ???
-        case Success(sn: ShutdownNotification) =>
-          exchangeActorRef ! BrokerStopped(sn.getBroker.split("-").last)
+        case Success(order: PositionOrderCommand)     => exchangeActorRef ! ExchangeActor.ProcessPositionOrder(order.po)
+        case Success(order: CancellationOrderCommand) => exchangeActorRef ! ExchangeActor.ProcessCancellationOrder(order.co)
+        case Success(order: ModificationOrderCommand) => exchangeActorRef ! ExchangeActor.ProcessModificationOrder(order.mo)
+        case Success(order: ShutdownOrderCommand)     =>
+          exchangeActorRef ! ExchangeActor.BrokerStopped(order.so.getBroker.split("-").last)
           messageConsumer.close()
           context.stop(self)
-        case Failure(msg)                      => msg.printStackTrace()
+        case Failure(msg) => msg.printStackTrace()
       }
     case other =>
       throw new IllegalArgumentException(s"Received non-TextMessage from ActiveMQ: $other")

@@ -4,29 +4,30 @@ import javax.jms.TextMessage
 
 import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders._
+import com.gft.digitalbank.exchange.solution.OrderCommand.{CancellationOrderCommand, ModificationOrderCommand, PositionOrderCommand, ShutdownOrderCommand}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 object Unmarshaller {
 
-  def apply(txt: TextMessage): Try[BrokerMessage] = {
+  def apply(txt: TextMessage): Try[OrderCommand] = Try {
     val json = txt.getText.parseJson.asJsObject
 
     json.getFields("messageType").headOption match {
-      case Some(JsString("ORDER"))                 => Try(json2PositionOrder(json))
-      case Some(JsString("MODIFICATION"))          => Try(json2ModificationOrder(json))
-      case Some(JsString("CANCEL"))                => Try(json2CancellationOrder(json))
-      case Some(JsString("SHUTDOWN_NOTIFICATION")) => Try(json2ShutdownNotification(json))
-      case other                                   => Failure(new IllegalArgumentException(s"Message ${txt.getText} doesn't contain field messageType"))
+      case Some(JsString("ORDER"))                 => json2PositionOrder(json)
+      case Some(JsString("MODIFICATION"))          => json2ModificationOrder(json)
+      case Some(JsString("CANCEL"))                => json2CancellationOrder(json)
+      case Some(JsString("SHUTDOWN_NOTIFICATION")) => json2ShutdownNotification(json)
+      case other                                   => throw new IllegalArgumentException(s"Message ${txt.getText} doesn't contain field messageType")
     }
   }
 
   @inline
-  final private def json2PositionOrder(json: JsObject): PositionOrder = json.getFields("messageType", "side", "id", "timestamp", "broker", "client", "product", "details") match {
+  final private def json2PositionOrder(json: JsObject): PositionOrderCommand = json.getFields("messageType", "side", "id", "timestamp", "broker", "client", "product", "details") match {
     case Seq(JsString(_), JsString(side), JsNumber(id), JsNumber(timestamp), JsString(broker), JsString(client), JsString(product), Seq(JsNumber(amount), JsNumber(price))) =>
-      new PositionOrder.PositionOrderBuilder()
+      PositionOrderCommand(PositionOrder.builder()
         .timestamp(timestamp.toLong)
         .id(id.toInt)
         .broker(broker)
@@ -34,40 +35,40 @@ object Unmarshaller {
         .product(product)
         .side(if(side == "BUY") Side.BUY else Side.SELL)
         .details(new OrderDetails(amount.toInt, price.toInt))
-        .build()
+        .build())
   }
 
   @inline
-  final private def json2CancellationOrder(json: JsObject): CancellationOrder = json.getFields("messageType", "id", "timestamp", "broker", "cancelledOrderId") match {
+  final private def json2CancellationOrder(json: JsObject): CancellationOrderCommand = json.getFields("messageType", "id", "timestamp", "broker", "cancelledOrderId") match {
     case Seq(JsString(_), JsNumber(id), JsNumber(timestamp), JsString(broker), JsNumber(cancelledOrderId)) =>
-      new CancellationOrder.CancellationOrderBuilder()
+      CancellationOrderCommand(CancellationOrder.builder()
         .messageType(MessageType.CANCEL)
         .timestamp(timestamp.toLong)
         .broker(broker)
         .cancelledOrderId(cancelledOrderId.toInt)
         .id(id.toInt)
-        .build()
+        .build())
   }
 
   @inline
-  final private def json2ShutdownNotification(json: JsObject): ShutdownNotification = json.getFields("messageType", "timestamp", "id", "broker") match {
+  final private def json2ShutdownNotification(json: JsObject) = json.getFields("messageType", "timestamp", "id", "broker") match {
     case Seq(JsString(_), JsNumber(timestamp), JsNumber(id), JsString(broker)) =>
-      new ShutdownNotification.ShutdownNotificationBuilder()
+      ShutdownOrderCommand(ShutdownNotification.builder()
         .timestamp(timestamp.toLong)
         .broker(broker)
         .id(id.toInt)
-        .build()
+        .build())
   }
 
   @inline
-  final private def json2ModificationOrder(json: JsObject): ModificationOrder = json.getFields("messageType", "id", "timestamp", "broker", "modifiedOrderId", "details") match {
+  final private def json2ModificationOrder(json: JsObject) = json.getFields("messageType", "id", "timestamp", "broker", "modifiedOrderId", "details") match {
     case Seq(JsString(_), JsNumber(id), JsNumber(timestamp), JsString(broker), JsNumber(modifiedOrderId), Seq(JsNumber(amount), JsNumber(price))) =>
-      new ModificationOrder.ModificationOrderBuilder()
+      ModificationOrderCommand(ModificationOrder.builder()
         .timestamp(timestamp.toLong)
         .id(id.toInt)
         .broker(broker)
         .modifiedOrderId(modifiedOrderId.toInt)
         .details(new OrderDetails(amount.toInt, price.toInt))
-        .build()
+        .build())
   }
 }
