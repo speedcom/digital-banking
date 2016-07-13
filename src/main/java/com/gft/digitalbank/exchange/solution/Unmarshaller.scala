@@ -29,7 +29,7 @@ object Unmarshaller {
 
     final def toPositionOrder: PositionOrderCommand = json.getFields("messageType", "side", "id", "timestamp", "broker", "client", "product", "details") match {
       case Seq(JsString(_), JsString(side), JsNumber(id), JsNumber(timestamp), JsString(broker), JsString(client), JsString(product), JsObject(details)) =>
-        orderWithDetails(details) { (amount, price) =>
+        orderWithDetails(details) { orderDetails =>
           PositionOrderCommand(PositionOrder.builder()
             .timestamp(timestamp.toLong)
             .id(id.toInt)
@@ -37,7 +37,7 @@ object Unmarshaller {
             .client(client)
             .product(product)
             .side(if(side == "BUY") Side.BUY else Side.SELL)
-            .details(new OrderDetails(amount, price))
+            .details(orderDetails)
             .build())
         }
     }
@@ -64,24 +64,24 @@ object Unmarshaller {
 
     final def toModificationOrder: ModificationOrderCommand = json.getFields("messageType", "id", "timestamp", "broker", "modifiedOrderId", "details") match {
       case Seq(JsString(_), JsNumber(id), JsNumber(timestamp), JsString(broker), JsNumber(modifiedOrderId), JsObject(details)) =>
-        orderWithDetails(details) { (amount, price) =>
+        orderWithDetails(details) { orderDetails =>
           ModificationOrderCommand(ModificationOrder.builder()
             .timestamp(timestamp.toLong)
             .id(id.toInt)
             .broker(broker)
             .modifiedOrderId(modifiedOrderId.toInt)
-            .details(new OrderDetails(amount, price))
+            .details(orderDetails)
             .build())
         }
     }
   }
 
-  private[this] def orderWithDetails[T](details: Map[String, JsValue])(toOrder: (Int, Int) => T): T = {
+  private[this] def orderWithDetails[T <: OrderCommand](details: Map[String, JsValue])(toOrder: OrderDetails => T): T = {
     val orderCmdOpt = for {
       JsNumber(amount) <- details.get("amount")
       JsNumber(price)  <- details.get("price")
     } yield {
-      toOrder(amount.toInt, price.toInt)
+      toOrder(new OrderDetails(amount.toInt, price.toInt))
     }
     orderCmdOpt getOrElse deserializationError("Json deserialization exception - Amount or price expected")
   }
