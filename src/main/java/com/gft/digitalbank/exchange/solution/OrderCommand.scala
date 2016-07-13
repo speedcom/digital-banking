@@ -1,35 +1,12 @@
 package com.gft.digitalbank.exchange.solution
 
-sealed trait OrderCommand{
-  def broker: String
+import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, ShutdownNotification}
+
+sealed trait OrderCommand
+
+object OrderCommand {
+  case class PositionOrderCommand(po: PositionOrder)         extends OrderCommand
+  case class ModificationOrderCommand(mo: ModificationOrder) extends OrderCommand
+  case class CancellationOrderCommand(co: CancellationOrder) extends OrderCommand
+  case class ShutdownOrderCommand(so: ShutdownNotification)  extends OrderCommand
 }
-
-case class ShutdownNotification(broker:String)
-
-case class Buy(id: Long,
-               timestamp: Long,
-               broker: String,
-               client: String,
-               product: String,
-               details: Details) extends OrderCommand
-
-case class Sell(id: Long,
-                timestamp: Long,
-                broker: String,
-                client: String,
-                product: String,
-                details: Details) extends OrderCommand
-
-case class Modify(id: Long,
-                  timestamp: Long,
-                  broker: String,
-                  modifiedOrderId: String,
-                  details: Details) extends OrderCommand
-
-case class Cancel(id: Long,
-                  timestamp: Long,
-                  broker: String,
-                  cancelledOrderId: String
-                 ) extends OrderCommand
-
-case class Details(amount: Int, price: Int)

@@ -1,12 +1,14 @@
 package com.gft.digitalbank.exchange.solution
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.gft.digitalbank.exchange.listener.ProcessingListener
-import com.gft.digitalbank.exchange.model.{ OrderBook, SolutionResult, Transaction }
+import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, Side}
+import com.gft.digitalbank.exchange.model.{OrderBook, SolutionResult, Transaction}
 
 import scala.collection.JavaConverters._
 
 class ExchangeActor extends Actor with ActorLogging {
+  import ExchangeActor._
 
   var processingListener: Option[ProcessingListener] = None
   val activeBrokers = collection.mutable.Set.empty[String]
@@ -50,38 +52,44 @@ class ExchangeActor extends Actor with ActorLogging {
                 ))
           }
         }
-      case ProcessMessage(orderCommand) =>
-        activeBrokers += orderCommand.broker
+      case ProcessPositionOrder(po) =>
+        activeBrokers += po.getBroker
         println(s"Active brokers: ${ activeBrokers }")
-        handleOrderCommand(orderCommand)
+        val order = if(po.getSide == Side.BUY) OrderBookActor.BuyOrder(po) else OrderBookActor.SellOrder(po)
+        bookActorRef(po.getProduct) ! order
+      case ProcessModificationOrder(mo) =>
+        activeBrokers += mo.getBroker
+        println(s"Active brokers: ${ activeBrokers }")
+        ???
+      case ProcessCancellationOrder(co) =>
+        activeBrokers += co.getBroker
+        println(s"Active brokers: ${ activeBrokers }")
+        ???
       case Start => println("Starting")
     }
   }
 
   private[this] def bookActorRef(product: String): ActorRef = {
-    books.getOrElseUpdate(product, context.actorOf(Props(classOf[BookActor], self, product), product))
-  }
-
-  private[this] def handleOrderCommand(orderCommand: OrderCommand): Unit = orderCommand match {
-    case b: Buy  => bookActorRef(b.product) ! b
-    case s: Sell => bookActorRef(s.product) ! s
-    case x       => ???
+    books.getOrElseUpdate(product, context.actorOf(Props(classOf[OrderBookActor], self, product), product))
   }
 
   private[this] def gatherResults(): Unit = {
     println("Will gather results as all brokers are gone")
     books.values.foreach {
-      _ ! GetTransactions
+      _ ! OrderBookActor.GetTransactions
     }
   }
 }
 
-sealed trait ExchangeCommand
-case class Register(processingListener: ProcessingListener)             extends ExchangeCommand
-case class Brokers(brokers: Set[String])                                extends ExchangeCommand
-case class ProcessMessage(orderCommand: OrderCommand)                   extends ExchangeCommand
-case class BrokerStopped(broker: String)                                extends ExchangeCommand
-case class RecordTransaction(product: String, transaction: Transaction) extends ExchangeCommand
-case class RecordOrderBook(product: String, orderBook: OrderBook)       extends ExchangeCommand
-
-case object Start extends ExchangeCommand
+object ExchangeActor {
+  sealed trait ExchangeCommand
+  case class Register(processingListener: ProcessingListener)             extends ExchangeCommand
+  case class Brokers(brokers: Set[String])                                extends ExchangeCommand
+  case class ProcessModificationOrder(mo: ModificationOrder)              extends ExchangeCommand
+  case class ProcessPositionOrder(po: PositionOrder)                      extends ExchangeCommand
+  case class ProcessCancellationOrder(co: CancellationOrder)              extends ExchangeCommand
+  case class BrokerStopped(broker: String)                                extends ExchangeCommand
+  case class RecordTransaction(product: String, transaction: Transaction) extends ExchangeCommand
+  case class RecordOrderBook(product: String, orderBook: OrderBook)       extends ExchangeCommand
+  case object Start                                                       extends ExchangeCommand
+}
