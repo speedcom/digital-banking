@@ -4,14 +4,6 @@ import akka.actor.{Actor, ActorRef}
 import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
 import com.gft.digitalbank.exchange.model.{OrderBook, Transaction}
 
-object OrderBookActor {
-  sealed trait BookCommand
-  case object GetTransactions              extends BookCommand
-  case object MatchTransactions            extends BookCommand
-  case class BuyOrder(po: PositionOrder)   extends BookCommand
-  case class SellOrder(po: PositionOrder)  extends BookCommand
-}
-
 class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
   import OrderBookActor._
 
@@ -44,4 +36,12 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
           println(s"Matching $product: $buy $sell")
       }
   }
+}
+
+object OrderBookActor {
+  sealed trait BookCommand
+  case object GetTransactions              extends BookCommand
+  case object MatchTransactions            extends BookCommand
+  case class BuyOrder(po: PositionOrder)   extends BookCommand
+  case class SellOrder(po: PositionOrder)  extends BookCommand
 }
