@@ -29,16 +29,16 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       exchangeActorRef ! ExchangeActor.RecordOrderBook(buildOrderBook)
       context.stop(self)
     case BuyOrder(b) =>
-      println(s"[OrderBookActor] BuyOrder $b")
+      println(s"[OrderBookActor] BuyOrder: $b")
       buy enqueue BuyOrderValue(b)
       matchTransactions()
     case SellOrder(s) =>
-      println(s"[OrderBookActor] SellOrder $s")
+      println(s"[OrderBookActor] SellOrder: $s")
       sell enqueue SellOrderValue(s)
       matchTransactions()
   }
 
-  private def matchTransactions() = {
+  private def matchTransactions(): Unit = {
     println("Starting matching")
     for {
       b <- buy .headOption
@@ -54,19 +54,25 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       println(s"[OrderBookActor] MatchTransactions, transactions-set after: $transactions")
 
       println(s"s[OrderBookActor] MatchTransactions, buy-set before dequeue operation: $buy")
-      buy .dequeue()
+      buy.dequeue()
       println(s"s[OrderBookActor] MatchTransactions, buy-set after dequeue operation: $buy")
 
       println(s"s[OrderBookActor] MatchTransactions, sell-set before dequeue operation: $sell")
       sell.dequeue()
       println(s"s[OrderBookActor] MatchTransactions, sell-set after dequeue operation: $sell")
 
-      if(b.amount > amountLimit) {
-        self ! b.ccopy(amountLimit)
-      }
-
-      if(s.amount > amountLimit) {
-        self ! s.ccopy(amountLimit)
+      (b.amount > amountLimit, s.amount > amountLimit) match {
+        case (true, true) =>
+          buy  enqueue b.ccopy(amountLimit)
+          sell enqueue s.ccopy(amountLimit)
+          matchTransactions()
+        case (true, false) =>
+          buy  enqueue b.ccopy(amountLimit)
+          matchTransactions()
+        case (false, true) =>
+          sell enqueue s.ccopy(amountLimit)
+          matchTransactions()
+        case _ =>
       }
     }
   }
