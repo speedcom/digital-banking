@@ -77,21 +77,30 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
     }
   }
 
-  private def buildOrderBook = {
-    OrderBook.builder()
-      .product(product)
-      .buyEntries(buy.map(b => toOrderEntry(b.order)).asJavaCollection)
-      .sellEntries(sell.map(s => toOrderEntry(s.order)).asJavaCollection)
-      .build()
+  private def sendNonEmptyOrderBook(ob: OrderBook)(send: Option[OrderBook] => Unit): Unit = {
+    println(s"[OrderBookActor] invooking sendNonEmptyOrderBook method with order-book: $ob")
+    if(!(ob.getSellEntries.isEmpty && ob.getBuyEntries.isEmpty))
+      send(Some(ob))
+    else
+      send(None)
   }
 
-  private def toOrderEntry(order: PositionOrder) = {
-    OrderEntry.builder()
-      .id(order.getId)
-      .amount(order.getDetails.getAmount)
-      .price(order.getDetails.getPrice)
-      .client(order.getClient)
-      .broker(order.getBroker)
+  private def buildOrderBook = {
+
+    def toOrderEntry(order: PositionOrder, id: Int) = {
+      OrderEntry.builder()
+        .id(id)
+        .amount(order.getDetails.getAmount)
+        .price(order.getDetails.getPrice)
+        .client(order.getClient)
+        .broker(order.getBroker)
+        .build()
+    }
+
+    OrderBook.builder()
+      .product(product)
+      .buyEntries (buy .view.zipWithIndex.map { case (b, id) => toOrderEntry(b.order, id+1) }.asJavaCollection)
+      .sellEntries(sell.view.zipWithIndex.map { case (s, id) => toOrderEntry(s.order, id+1) }.asJavaCollection)
       .build()
   }
 
