@@ -44,7 +44,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       b <- buy .headOption
       s <- sell.headOption
       if b.price >= s.price
-      amountLimit = math.max(b.amount, s.amount)
+      amountLimit = math.min(b.amount, s.amount)
       priceLimit  = if(b.timestamp > s.timestamp) b.price else s.price
       transaction = buildTransaction(b, s, amountLimit, priceLimit)
     } yield {
