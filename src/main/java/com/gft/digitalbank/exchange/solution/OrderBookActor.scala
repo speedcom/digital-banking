@@ -2,10 +2,11 @@ package com.gft.digitalbank.exchange.solution
 
 import akka.actor.{Actor, ActorRef}
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
-import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, Transaction}
+import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, OrderEntry, Transaction}
 import com.google.common.collect.Sets
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 object OrderBookActor {
   sealed trait BookCommand
@@ -25,16 +26,8 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
   override def receive: Receive = {
     case GetTransactions =>
-      println(s"Processing finished, send not matched orders")
-
-      //Transactions should be sent immediately when they are matched
-      exchangeActorRef ! ExchangeActor.RecordTransaction(
-        product,
-        Transaction.builder().id(1).amount(100).price(100).product(product).brokerBuy("1").brokerSell("2").clientBuy("100").clientSell("101").build()
-      )
-
-      exchangeActorRef ! ExchangeActor.RecordOrderBook(product, OrderBook.builder().product(product).build())
-
+      exchangeActorRef ! ExchangeActor.RecordTransactions(transactions)
+      exchangeActorRef ! ExchangeActor.RecordOrderBook(product, buildOrderBook)
       context.stop(self)
     case BuyOrder(b) =>
       buy enqueue BuyOrderValue(b)
@@ -66,6 +59,24 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
           self ! MatchTransactions
         }
       }
+  }
+
+  private def buildOrderBook = {
+    OrderBook.builder()
+      .product(product)
+      .buyEntries(buy.map(b => toOrderEntry(b.order)).asJavaCollection)
+      .sellEntries(sell.map(s => toOrderEntry(s.order)).asJavaCollection)
+      .build()
+  }
+
+  private def toOrderEntry(order: PositionOrder) = {
+    OrderEntry.builder()
+      .id(order.getId)
+      .amount(order.getDetails.getAmount)
+      .price(order.getDetails.getPrice)
+      .client(order.getClient)
+      .broker(order.getBroker)
+      .build()
   }
 
   private def buildTransaction(b: BuyOrderValue, s: SellOrderValue, amountLimit: Int, priceLimit: Int) = {

@@ -1,9 +1,12 @@
 package com.gft.digitalbank.exchange.solution
 
+import java.util
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.gft.digitalbank.exchange.listener.ProcessingListener
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, Side}
 import com.gft.digitalbank.exchange.model.{OrderBook, SolutionResult, Transaction}
+import com.google.common.collect.Sets
 
 import scala.collection.JavaConverters._
 
@@ -13,8 +16,9 @@ class ExchangeActor extends Actor with ActorLogging {
   var processingListener: Option[ProcessingListener] = None
   val activeBrokers = collection.mutable.Set.empty[String]
   val books         = collection.mutable.Map.empty[String, ActorRef]
-  val transactions  = collection.mutable.Buffer.empty[Transaction]
-  val orderBooks    = collection.mutable.Map.empty[String, OrderBook]
+
+  val orderBooks    = Sets.newHashSet[OrderBook]()
+  val transactions  = Sets.newHashSet[Transaction]()
 
   override def receive: Receive = {
     case cmd: ExchangeCommand => handleExchangeCommand(cmd)
@@ -37,20 +41,27 @@ class ExchangeActor extends Actor with ActorLogging {
             gatherResults()
           }
         }
-      case RecordTransaction(product, transaction) =>
-        transactions.append(transaction)
-        println(s"Transaction $product $transaction")
-      case RecordOrderBook(product, orderBook) => {
-          println(s"Recording $product $orderBook")
-          orderBooks.update(product, orderBook)
-          if (orderBooks.size == books.size) {
-            val nonEmptyBooks = orderBooks.values.filterNot(o => o.getSellEntries.isEmpty && o.getBuyEntries.isEmpty).asJavaCollection
-            context.system.terminate()
-            processingListener.foreach(
-                _.processingDone(
-                    SolutionResult.builder().orderBooks(nonEmptyBooks).transactions(transactions.asJava).build()
-                ))
-          }
+      case RecordTransactions(ts) =>
+        transactions.addAll(ts)
+      case RecordOrderBook(product, orderBook) =>
+        orderBooks.add(orderBook)
+
+        if (orderBooks.size == books.size) {
+          println(
+            s"""
+               |SOLUTION RESULT:
+               |order-books:  $orderBooks
+               |transactions: $transactions
+             """.stripMargin
+          )
+
+          context.system.terminate()
+          processingListener.foreach(_.processingDone(
+            SolutionResult.builder()
+              .orderBooks(orderBooks)
+              .transactions(transactions)
+              .build()
+          ))
         }
       case ProcessPositionOrder(po) =>
         activeBrokers += po.getBroker
@@ -89,7 +100,7 @@ object ExchangeActor {
   case class ProcessPositionOrder(po: PositionOrder)                      extends ExchangeCommand
   case class ProcessCancellationOrder(co: CancellationOrder)              extends ExchangeCommand
   case class BrokerStopped(broker: String)                                extends ExchangeCommand
-  case class RecordTransaction(product: String, transaction: Transaction) extends ExchangeCommand
+  case class RecordTransactions(transactions: util.HashSet[Transaction]) extends ExchangeCommand
   case class RecordOrderBook(product: String, orderBook: OrderBook)       extends ExchangeCommand
   case object Start                                                       extends ExchangeCommand
 }
