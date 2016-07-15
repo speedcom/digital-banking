@@ -27,12 +27,14 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
   override def receive: Receive = {
     case GetTransactions =>
       exchangeActorRef ! ExchangeActor.RecordTransactions(transactions)
-      exchangeActorRef ! ExchangeActor.RecordOrderBook(product, buildOrderBook)
+      exchangeActorRef ! ExchangeActor.RecordOrderBook(buildOrderBook)
       context.stop(self)
     case BuyOrder(b) =>
+      println(s"[OrderBookActor] BuyOrder $b")
       buy enqueue BuyOrderValue(b)
       self ! MatchTransactions
     case SellOrder(s) =>
+      println(s"[OrderBookActor] SellOrder $s")
       sell enqueue SellOrderValue(s)
       self ! MatchTransactions
     case MatchTransactions =>
@@ -44,19 +46,25 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
         priceLimit  = if(b.timestamp > s.timestamp) b.price else s.price
         transaction = buildTransaction(b, s, amountLimit, priceLimit)
       } yield {
+        println(s"[OrderBookActor] MatchTransactions, matching buy-offer: $b with sell-offer: $s")
+        println(s"[OrderBookActor] MatchTransactions, transactions-set before addition: $transactions")
         transactions.add(transaction)
+        println(s"[OrderBookActor] MatchTransactions, transactions-set after: $transactions")
 
+        println(s"s[OrderBookActor] MatchTransactions, buy-set before dequeue operation: $buy")
         buy .dequeue()
+        println(s"s[OrderBookActor] MatchTransactions, buy-set after dequeue operation: $buy")
+
+        println(s"s[OrderBookActor] MatchTransactions, sell-set before dequeue operation: $sell")
         sell.dequeue()
+        println(s"s[OrderBookActor] MatchTransactions, sell-set after dequeue operation: $sell")
 
         if(b.amount > amountLimit) {
           buy.enqueue(b.ccopy(amountLimit))
-          self ! MatchTransactions
         }
 
         if(s.amount > amountLimit) {
           sell.enqueue(s.ccopy(amountLimit))
-          self ! MatchTransactions
         }
       }
   }

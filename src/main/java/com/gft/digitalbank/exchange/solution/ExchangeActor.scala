@@ -17,7 +17,7 @@ class ExchangeActor extends Actor with ActorLogging {
   val activeBrokers = collection.mutable.Set.empty[String]
   val books         = collection.mutable.Map.empty[String, ActorRef]
 
-  val orderBooks    = Sets.newHashSet[OrderBook]()
+  val orderBooks    = collection.mutable.Set.empty[OrderBook]
   val transactions  = Sets.newHashSet[Transaction]()
 
   override def receive: Receive = {
@@ -42,15 +42,25 @@ class ExchangeActor extends Actor with ActorLogging {
           }
         }
       case RecordTransactions(ts) =>
+        println(s"[ExchangeActor] RecordTransactions, adding $ts")
+        println(s"[ExchangeActor] RecordTransactions, transactions-set before addition $transactions")
         transactions.addAll(ts)
-      case RecordOrderBook(product, orderBook) =>
-        orderBooks.add(orderBook)
+        println(s"[ExchangeActor] RecordTransactions, transactions-set after addition $transactions")
+      case RecordOrderBook(orderBook) =>
+        println(s"[ExchangeActor] RecordOrderBook, adding $orderBook")
+        println(s"[ExchangeActor] RecordOrderBook, orderBook before addition: $orderBooks")
+        orderBooks += orderBook
+        println(s"[ExchangeActor] RecordOrderBook, orderBook after addition: $orderBooks")
 
         if (orderBooks.size == books.size) {
+
+          val nonEmptyOrderBooks = orderBooks
+            .filterNot(ob => ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty)
+
           println(
             s"""
                |SOLUTION RESULT:
-               |order-books:  $orderBooks
+               |order-books:  $nonEmptyOrderBooks
                |transactions: $transactions
              """.stripMargin
           )
@@ -58,7 +68,7 @@ class ExchangeActor extends Actor with ActorLogging {
           context.system.terminate()
           processingListener.foreach(_.processingDone(
             SolutionResult.builder()
-              .orderBooks(orderBooks)
+              .orderBooks(nonEmptyOrderBooks.asJavaCollection)
               .transactions(transactions)
               .build()
           ))
@@ -66,8 +76,12 @@ class ExchangeActor extends Actor with ActorLogging {
       case ProcessPositionOrder(po) =>
         activeBrokers += po.getBroker
         println(s"Active brokers: ${ activeBrokers }")
-        val order = if(po.getSide == Side.BUY) OrderBookActor.BuyOrder(po) else OrderBookActor.SellOrder(po)
-        bookActorRef(po.getProduct) ! order
+        val bookActor = bookActorRef(po.getProduct)
+        println(s"Choosen book-actor: $bookActor")
+        if(po.getSide == Side.BUY)
+          bookActor ! OrderBookActor.BuyOrder(po)
+        else
+          bookActor ! OrderBookActor.SellOrder(po)
       case ProcessModificationOrder(mo) =>
         activeBrokers += mo.getBroker
         println(s"Active brokers: ${ activeBrokers }")
@@ -100,7 +114,7 @@ object ExchangeActor {
   case class ProcessPositionOrder(po: PositionOrder)                      extends ExchangeCommand
   case class ProcessCancellationOrder(co: CancellationOrder)              extends ExchangeCommand
   case class BrokerStopped(broker: String)                                extends ExchangeCommand
-  case class RecordTransactions(transactions: util.HashSet[Transaction]) extends ExchangeCommand
-  case class RecordOrderBook(product: String, orderBook: OrderBook)       extends ExchangeCommand
+  case class RecordTransactions(transactions: util.HashSet[Transaction])  extends ExchangeCommand
+  case class RecordOrderBook(orderBook: OrderBook)                        extends ExchangeCommand
   case object Start                                                       extends ExchangeCommand
 }
