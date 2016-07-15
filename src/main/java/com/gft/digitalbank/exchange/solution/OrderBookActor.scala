@@ -77,14 +77,6 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
     }
   }
 
-  private def sendNonEmptyOrderBook(ob: OrderBook)(send: Option[OrderBook] => Unit): Unit = {
-    println(s"[OrderBookActor] invooking sendNonEmptyOrderBook method with order-book: $ob")
-    if(!(ob.getSellEntries.isEmpty && ob.getBuyEntries.isEmpty))
-      send(Some(ob))
-    else
-      send(None)
-  }
-
   private def buildOrderBook = {
 
     def toOrderEntry(order: PositionOrder, id: Int) = {
@@ -97,10 +89,26 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
         .build()
     }
 
+    def takeBuyOrdersSorted = {
+      val buffer = mutable.Buffer[BuyOrderValue]()
+      while(buy.nonEmpty) {
+        buffer.append(buy.dequeue())
+      }
+      buffer
+    }
+
+    def takeSellOrdersSorted = {
+      val buffer = mutable.Buffer[SellOrderValue]()
+      while(sell.nonEmpty) {
+        buffer.append(sell.dequeue())
+      }
+      buffer
+    }
+
     OrderBook.builder()
       .product(product)
-      .buyEntries (buy .iterator.zipWithIndex.map { case (b, id) => toOrderEntry(b.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
-      .sellEntries(sell.iterator.zipWithIndex.map { case (s, id) => toOrderEntry(s.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
+      .buyEntries (takeBuyOrdersSorted.iterator.zipWithIndex.map { case (b, id) => toOrderEntry(b.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
+      .sellEntries(takeSellOrdersSorted.iterator.zipWithIndex.map { case (s, id) => toOrderEntry(s.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
       .build()
   }
 
