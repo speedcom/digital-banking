@@ -11,7 +11,6 @@ import scala.collection.JavaConverters._
 object OrderBookActor {
   sealed trait BookCommand
   case object GetTransactions              extends BookCommand
-  case object MatchTransactions            extends BookCommand
   case class BuyOrder(po: PositionOrder)   extends BookCommand
   case class SellOrder(po: PositionOrder)  extends BookCommand
 }
@@ -32,41 +31,44 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
     case BuyOrder(b) =>
       println(s"[OrderBookActor] BuyOrder $b")
       buy enqueue BuyOrderValue(b)
-      self ! MatchTransactions
+      matchTransactions()
     case SellOrder(s) =>
       println(s"[OrderBookActor] SellOrder $s")
       sell enqueue SellOrderValue(s)
-      self ! MatchTransactions
-    case MatchTransactions =>
-      for {
-        b <- buy .headOption
-        s <- sell.headOption
-        if b.price >= s.price
-        amountLimit = math.max(b.amount, s.amount)
-        priceLimit  = if(b.timestamp > s.timestamp) b.price else s.price
-        transaction = buildTransaction(b, s, amountLimit, priceLimit)
-      } yield {
-        println(s"[OrderBookActor] MatchTransactions, matching buy-offer: $b with sell-offer: $s")
-        println(s"[OrderBookActor] MatchTransactions, transactions-set before addition: $transactions")
-        transactions.add(transaction)
-        println(s"[OrderBookActor] MatchTransactions, transactions-set after: $transactions")
+      matchTransactions()
+  }
 
-        println(s"s[OrderBookActor] MatchTransactions, buy-set before dequeue operation: $buy")
-        buy .dequeue()
-        println(s"s[OrderBookActor] MatchTransactions, buy-set after dequeue operation: $buy")
+  private def matchTransactions() = {
+    println("Starting matching")
+    for {
+      b <- buy .headOption
+      s <- sell.headOption
+      if b.price >= s.price
+      amountLimit = math.max(b.amount, s.amount)
+      priceLimit  = if(b.timestamp > s.timestamp) b.price else s.price
+      transaction = buildTransaction(b, s, amountLimit, priceLimit)
+    } yield {
+      println(s"[OrderBookActor] MatchTransactions, matching \nbuy-offer: $b \nsell-offer: $s")
+      println(s"[OrderBookActor] MatchTransactions, transactions-set before addition: $transactions")
+      transactions.add(transaction)
+      println(s"[OrderBookActor] MatchTransactions, transactions-set after: $transactions")
 
-        println(s"s[OrderBookActor] MatchTransactions, sell-set before dequeue operation: $sell")
-        sell.dequeue()
-        println(s"s[OrderBookActor] MatchTransactions, sell-set after dequeue operation: $sell")
+      println(s"s[OrderBookActor] MatchTransactions, buy-set before dequeue operation: $buy")
+      buy .dequeue()
+      println(s"s[OrderBookActor] MatchTransactions, buy-set after dequeue operation: $buy")
 
-        if(b.amount > amountLimit) {
-          buy.enqueue(b.ccopy(amountLimit))
-        }
+      println(s"s[OrderBookActor] MatchTransactions, sell-set before dequeue operation: $sell")
+      sell.dequeue()
+      println(s"s[OrderBookActor] MatchTransactions, sell-set after dequeue operation: $sell")
 
-        if(s.amount > amountLimit) {
-          sell.enqueue(s.ccopy(amountLimit))
-        }
+      if(b.amount > amountLimit) {
+        self ! b.ccopy(amountLimit)
       }
+
+      if(s.amount > amountLimit) {
+        self ! s.ccopy(amountLimit)
+      }
+    }
   }
 
   private def buildOrderBook = {
