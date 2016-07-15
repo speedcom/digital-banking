@@ -99,8 +99,8 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
     OrderBook.builder()
       .product(product)
-      .buyEntries (buy .view.zipWithIndex.map { case (b, id) => toOrderEntry(b.order, id+1) }.asJavaCollection)
-      .sellEntries(sell.view.zipWithIndex.map { case (s, id) => toOrderEntry(s.order, id+1) }.asJavaCollection)
+      .buyEntries (buy .iterator.zipWithIndex.map { case (b, id) => toOrderEntry(b.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
+      .sellEntries(sell.iterator.zipWithIndex.map { case (s, id) => toOrderEntry(s.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
       .build()
   }
 
