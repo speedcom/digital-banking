@@ -45,7 +45,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       s <- sell.headOption
       if b.price >= s.price
       amountLimit = math.min(b.amount, s.amount)
-      priceLimit  = if(b.timestamp > s.timestamp) b.price else s.price
+      priceLimit  = if(b.timestamp < s.timestamp) b.price else s.price
       transaction = buildTransaction(b, s, amountLimit, priceLimit)
     } yield {
       println(s"[OrderBookActor] MatchTransactions, matching \nbuy-offer: $b \nsell-offer: $s")
