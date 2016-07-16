@@ -30,11 +30,11 @@ case class OrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = fal
 object OrderBookValue {
 
   val buyOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case buy =>
-    (buy.order.getDetails.getPrice, buy.order.getTimestamp * -1)
+    (buy.price, buy.timestamp * -1)
   }
 
   val sellOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case sell =>
-    (sell.order.getDetails.getPrice * -1, sell.order.getTimestamp * -1)
+    (sell.price * -1, sell.timestamp * -1)
   }
 
 }
