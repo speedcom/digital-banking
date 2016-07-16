@@ -83,7 +83,7 @@ object Unmarshaller {
     } yield {
       toOrder(new OrderDetails(amount.toInt, price.toInt))
     }
-    orderCmdOpt getOrElse deserializationError("Json deserialization exception - Amount or price expected")
+    orderCmdOpt getOrElse deserializationError("Json deserialization exception - \"amount\" or \"price\" expected")
   }
 
 }
