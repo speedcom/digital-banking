@@ -24,7 +24,10 @@ case class OrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = fal
       .build()
   }
 
-  def ccopy(minusAmount: Int) = this.copy(order = update(minusAmount), partiallyExecuted = true)
+  def ccopy(minusAmount: Int) = this.copy(
+    order = update(minusAmount),
+    partiallyExecuted = true
+  )
 }
 
 object OrderBookValue {
