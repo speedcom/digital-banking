@@ -4,18 +4,17 @@ import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
 
 // TODO: we should probably create mutable version of it (for performance)
-sealed trait OrderBookValue {
-  def order: PositionOrder
+case class OrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = false) {
 
   val price: Int      = order.getDetails.getPrice
   val amount: Int     = order.getDetails.getAmount
   val timestamp: Long = order.getTimestamp
 
-  val partiallyExecuted: Boolean
-
-  protected def update(decreaseByAmountLimit: Int): PositionOrder = {
+  private def update(minusAmount: Int): PositionOrder = {
     PositionOrder.builder()
-      .details(new OrderDetails(order.getDetails.getAmount - decreaseByAmountLimit, order.getDetails.getPrice))
+      .details(new OrderDetails(
+        order.getDetails.getAmount - minusAmount,
+        order.getDetails.getPrice))
       .timestamp(order.getTimestamp)
       .product(order.getProduct)
       .broker(order.getBroker)
@@ -24,22 +23,18 @@ sealed trait OrderBookValue {
       .id(order.getId)
       .build()
   }
-}
-case class SellOrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = false) extends OrderBookValue {
-  def ccopy(decreaseByAmountLimit: Int) = this.copy(order = update(decreaseByAmountLimit), true)
-}
-case class BuyOrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = false) extends OrderBookValue {
-  def ccopy(decreaseByAmountLimit: Int) = this.copy(order = update(decreaseByAmountLimit), true)
+
+  def ccopy(minusAmount: Int) = this.copy(order = update(minusAmount), partiallyExecuted = true)
 }
 
-object BuyOrderBookValue {
-  val priceDescTimestampAscOrdering = Ordering.by[BuyOrderBookValue, (Int, Long)] {
-    case buy => (buy.order.getDetails.getPrice, -1 * buy.order.getTimestamp)
-  }
-}
+object OrderBookValue {
 
-object SellOrderBookValue {
-  val priceAscTimestampAscOrdering = Ordering.by[SellOrderBookValue, (Int, Long)] {
-    case sell => (-1 * sell.order.getDetails.getPrice, -1 * sell.order.getTimestamp)
+  val buyOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case buy =>
+    (buy.order.getDetails.getPrice, buy.order.getTimestamp * -1)
   }
+
+  val sellOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case sell =>
+    (sell.order.getDetails.getPrice * -1, sell.order.getTimestamp * -1)
+  }
+
 }
