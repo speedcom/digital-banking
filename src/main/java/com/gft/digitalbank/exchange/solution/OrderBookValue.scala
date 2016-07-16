@@ -10,8 +10,8 @@ case class OrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = fal
   val amount: Int     = order.getDetails.getAmount
   val timestamp: Long = order.getTimestamp
 
-  private def update(minusAmount: Int): PositionOrder = {
-    PositionOrder.builder()
+  def update(minusAmount: Int): OrderBookValue = {
+    val po = PositionOrder.builder()
       .details(new OrderDetails(
         order.getDetails.getAmount - minusAmount,
         order.getDetails.getPrice))
@@ -22,12 +22,9 @@ case class OrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = fal
       .side(order.getSide)
       .id(order.getId)
       .build()
-  }
 
-  def ccopy(minusAmount: Int) = this.copy(
-    order = update(minusAmount),
-    partiallyExecuted = true
-  )
+    OrderBookValue(po, true)
+  }
 }
 
 object OrderBookValue {

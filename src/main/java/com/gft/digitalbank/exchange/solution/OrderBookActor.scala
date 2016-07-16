@@ -56,14 +56,14 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
       (b.amount > amountLimit, s.amount > amountLimit) match {
         case (true, true) =>
-          buy  enqueue b.ccopy(amountLimit)
-          sell enqueue s.ccopy(amountLimit)
+          buy  enqueue b.update(amountLimit)
+          sell enqueue s.update(amountLimit)
           matchTransactions()
         case (true, false) =>
-          buy  enqueue b.ccopy(amountLimit)
+          buy  enqueue b.update(amountLimit)
           matchTransactions()
         case (false, true) =>
-          sell enqueue s.ccopy(amountLimit)
+          sell enqueue s.update(amountLimit)
           matchTransactions()
         case _ =>
       }
