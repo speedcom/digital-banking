@@ -42,33 +42,16 @@ class ExchangeActor extends Actor with ActorLogging {
           }
         }
       case RecordTransactions(ts) =>
-        println(s"[ExchangeActor] RecordTransactions, adding $ts")
-        println(s"[ExchangeActor] RecordTransactions, transactions-set before addition $transactions")
         transactions.addAll(ts)
-        println(s"[ExchangeActor] RecordTransactions, transactions-set after addition $transactions")
       case RecordOrderBook(orderBook) =>
-        println(s"[ExchangeActor] RecordOrderBook, adding $orderBook")
-        println(s"[ExchangeActor] RecordOrderBook, orderBook before addition: $orderBooks")
         orderBooks += orderBook
-        println(s"[ExchangeActor] RecordOrderBook, orderBook after addition: $orderBooks")
 
         if (orderBooks.size == books.size) {
-
-          val nonEmptyOrderBooks = orderBooks
-            .filterNot(ob => ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty)
-
-          println(
-            s"""
-               |SOLUTION RESULT:
-               |order-books:  $nonEmptyOrderBooks
-               |transactions: $transactions
-             """.stripMargin
-          )
-
           context.system.terminate()
+
           processingListener.foreach(_.processingDone(
             SolutionResult.builder()
-              .orderBooks(nonEmptyOrderBooks.asJavaCollection)
+              .orderBooks(orderBooks.filterNot(ob => ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty).asJavaCollection)
               .transactions(transactions)
               .build()
           ))
