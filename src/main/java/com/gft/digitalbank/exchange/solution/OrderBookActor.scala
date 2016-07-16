@@ -1,47 +1,113 @@
 package com.gft.digitalbank.exchange.solution
 
 import akka.actor.{Actor, ActorRef}
-import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
-import com.gft.digitalbank.exchange.model.{OrderBook, Transaction}
+import com.gft.digitalbank.exchange.model.orders.PositionOrder
+import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, OrderEntry, Transaction}
+import com.google.common.collect.Sets
 
-class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
-  import OrderBookActor._
-
-  val buy  = collection.mutable.Buffer.empty[PositionOrder]
-  val sell = collection.mutable.Buffer.empty[PositionOrder]
-
-  override def receive: Receive = {
-    case x =>
-      println(s"BOOK $product got $x")
-      x match {
-        case GetTransactions =>
-          println(s"Processing finished, send not matched orders")
-
-          //Transactions should be sent immediately when they are matched
-          exchangeActorRef ! ExchangeActor.RecordTransaction(
-              product,
-              Transaction.builder().id(1).amount(100).price(100).product(product).brokerBuy("1").brokerSell("2").clientBuy("100").clientSell("101").build()
-          )
-
-          exchangeActorRef ! ExchangeActor.RecordOrderBook(product, OrderBook.builder().product(product).build())
-
-          context.stop(self)
-        case BuyOrder(b) =>
-          buy.append(b)
-          self ! MatchTransactions
-        case SellOrder(s) =>
-          sell.append(s)
-          self ! MatchTransactions
-        case MatchTransactions =>
-          println(s"Matching $product: $buy $sell")
-      }
-  }
-}
+import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 object OrderBookActor {
   sealed trait BookCommand
   case object GetTransactions              extends BookCommand
-  case object MatchTransactions            extends BookCommand
   case class BuyOrder(po: PositionOrder)   extends BookCommand
   case class SellOrder(po: PositionOrder)  extends BookCommand
+}
+
+class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
+  import OrderBookActor._
+
+  private val buy  = new mutable.PriorityQueue[BuyOrderBookValue]()(BuyOrderBookValue.priceDescTimestampAscOrdering)
+  private val sell = new mutable.PriorityQueue[SellOrderBookValue]()(SellOrderBookValue.priceAscTimestampAscOrdering)
+
+  private val transactions = Sets.newHashSet[Transaction]()
+
+  override def receive: Receive = {
+    case GetTransactions =>
+      exchangeActorRef ! ExchangeActor.RecordTransactions(transactions)
+      exchangeActorRef ! ExchangeActor.RecordOrderBook(buildOrderBook)
+      context.stop(self)
+    case BuyOrder(b) =>
+      println(s"[OrderBookActor] BuyOrder: $b")
+      buy enqueue BuyOrderBookValue(b)
+      matchTransactions()
+    case SellOrder(s) =>
+      println(s"[OrderBookActor] SellOrder: $s")
+      sell enqueue SellOrderBookValue(s)
+      matchTransactions()
+  }
+
+  private def matchTransactions(): Unit = {
+    println("Starting matching")
+    for {
+      b <- buy .headOption
+      s <- sell.headOption
+      if b.price >= s.price
+      amountLimit = math.min(b.amount, s.amount)
+      priceLimit  = if(b.timestamp < s.timestamp) b.price else s.price
+      transaction = buildTransaction(b, s, amountLimit, priceLimit)
+    } yield {
+      println(s"[OrderBookActor] Matching: \nbuy-offer: $b \nsell-offer: $s")
+
+      transactions.add(transaction)
+      buy.dequeue()
+      sell.dequeue()
+
+      (b.amount > amountLimit, s.amount > amountLimit) match {
+        case (true, true) =>
+          buy  enqueue b.ccopy(amountLimit)
+          sell enqueue s.ccopy(amountLimit)
+          matchTransactions()
+        case (true, false) =>
+          buy  enqueue b.ccopy(amountLimit)
+          matchTransactions()
+        case (false, true) =>
+          sell enqueue s.ccopy(amountLimit)
+          matchTransactions()
+        case _ =>
+      }
+    }
+  }
+
+  private def buildOrderBook = {
+
+    def prepareEntries[T <: OrderBookValue](q: mutable.PriorityQueue[T]): mutable.Buffer[OrderEntry] = {
+      val buffer = mutable.Buffer[T]()
+      while(q.nonEmpty) { buffer.append(q.dequeue()) }
+      buffer.iterator
+        .zipWithIndex
+        .map { case (b, id) => toOrderEntry(b.order, id + 1) }
+        .toBuffer
+    }
+
+    OrderBook.builder()
+      .product(product)
+      .buyEntries(prepareEntries(buy).asJavaCollection)
+      .sellEntries(prepareEntries(sell).asJavaCollection)
+      .build()
+  }
+
+  private def toOrderEntry(order: PositionOrder, id: Int) = {
+    OrderEntry.builder()
+      .id(id)
+      .amount(order.getDetails.getAmount)
+      .price(order.getDetails.getPrice)
+      .client(order.getClient)
+      .broker(order.getBroker)
+      .build()
+  }
+
+  private def buildTransaction(b: BuyOrderBookValue, s: SellOrderBookValue, amountLimit: Int, priceLimit: Int) = {
+    Transaction.builder()
+      .id(transactions.size() + 1)
+      .amount(amountLimit)
+      .price(priceLimit)
+      .brokerBuy(b.order.getBroker)
+      .brokerSell(s.order.getBroker)
+      .clientBuy(b.order.getClient)
+      .clientSell(s.order.getClient)
+      .product(product)
+      .build()
+  }
 }
