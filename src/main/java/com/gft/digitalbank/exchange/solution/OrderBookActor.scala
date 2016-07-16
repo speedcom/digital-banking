@@ -48,18 +48,11 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       priceLimit  = if(b.timestamp < s.timestamp) b.price else s.price
       transaction = buildTransaction(b, s, amountLimit, priceLimit)
     } yield {
-      println(s"[OrderBookActor] MatchTransactions, matching \nbuy-offer: $b \nsell-offer: $s")
-      println(s"[OrderBookActor] MatchTransactions, transactions-set before addition: $transactions")
+      println(s"[OrderBookActor] Matching: \nbuy-offer: $b \nsell-offer: $s")
+
       transactions.add(transaction)
-      println(s"[OrderBookActor] MatchTransactions, transactions-set after: $transactions")
-
-      println(s"s[OrderBookActor] MatchTransactions, buy-set before dequeue operation: $buy")
       buy.dequeue()
-      println(s"s[OrderBookActor] MatchTransactions, buy-set after dequeue operation: $buy")
-
-      println(s"s[OrderBookActor] MatchTransactions, sell-set before dequeue operation: $sell")
       sell.dequeue()
-      println(s"s[OrderBookActor] MatchTransactions, sell-set after dequeue operation: $sell")
 
       (b.amount > amountLimit, s.amount > amountLimit) match {
         case (true, true) =>
@@ -79,36 +72,29 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
   private def buildOrderBook = {
 
-    def toOrderEntry(order: PositionOrder, id: Int) = {
-      OrderEntry.builder()
-        .id(id)
-        .amount(order.getDetails.getAmount)
-        .price(order.getDetails.getPrice)
-        .client(order.getClient)
-        .broker(order.getBroker)
-        .build()
-    }
-
-    def takeBuyOrdersSorted = {
-      val buffer = mutable.Buffer[BuyOrderValue]()
-      while(buy.nonEmpty) {
-        buffer.append(buy.dequeue())
-      }
-      buffer
-    }
-
-    def takeSellOrdersSorted = {
-      val buffer = mutable.Buffer[SellOrderValue]()
-      while(sell.nonEmpty) {
-        buffer.append(sell.dequeue())
-      }
-      buffer
+    def prepareEntries[T <: OrderValue](q: mutable.PriorityQueue[T]): mutable.Buffer[OrderEntry] = {
+      val buffer = mutable.Buffer[T]()
+      while(q.nonEmpty) { buffer.append(q.dequeue()) }
+      buffer.iterator
+        .zipWithIndex
+        .map { case (b, id) => toOrderEntry(b.order, id + 1) }
+        .toBuffer
     }
 
     OrderBook.builder()
       .product(product)
-      .buyEntries (takeBuyOrdersSorted.iterator.zipWithIndex.map { case (b, id) => toOrderEntry(b.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
-      .sellEntries(takeSellOrdersSorted.iterator.zipWithIndex.map { case (s, id) => toOrderEntry(s.order, id+1) }.toList.asJavaCollection) // TODO: is that perf enough? (dont want to create intermediate collection)
+      .buyEntries(prepareEntries(buy).asJavaCollection)
+      .sellEntries(prepareEntries(sell).asJavaCollection)
+      .build()
+  }
+
+  private def toOrderEntry(order: PositionOrder, id: Int) = {
+    OrderEntry.builder()
+      .id(id)
+      .amount(order.getDetails.getAmount)
+      .price(order.getDetails.getPrice)
+      .client(order.getClient)
+      .broker(order.getBroker)
       .build()
   }
 
