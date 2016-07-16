@@ -18,8 +18,8 @@ object OrderBookActor {
 class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
   import OrderBookActor._
 
-  private val buy  = new mutable.PriorityQueue[BuyOrderValue]()(BuyOrderValue.priceDescTimestampAscOrdering)
-  private val sell = new mutable.PriorityQueue[SellOrderValue]()(SellOrderValue.priceAscTimestampAscOrdering)
+  private val buy  = new mutable.PriorityQueue[BuyOrderBookValue]()(BuyOrderBookValue.priceDescTimestampAscOrdering)
+  private val sell = new mutable.PriorityQueue[SellOrderBookValue]()(SellOrderBookValue.priceAscTimestampAscOrdering)
 
   private val transactions = Sets.newHashSet[Transaction]()
 
@@ -30,11 +30,11 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       context.stop(self)
     case BuyOrder(b) =>
       println(s"[OrderBookActor] BuyOrder: $b")
-      buy enqueue BuyOrderValue(b)
+      buy enqueue BuyOrderBookValue(b)
       matchTransactions()
     case SellOrder(s) =>
       println(s"[OrderBookActor] SellOrder: $s")
-      sell enqueue SellOrderValue(s)
+      sell enqueue SellOrderBookValue(s)
       matchTransactions()
   }
 
@@ -72,7 +72,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
   private def buildOrderBook = {
 
-    def prepareEntries[T <: OrderValue](q: mutable.PriorityQueue[T]): mutable.Buffer[OrderEntry] = {
+    def prepareEntries[T <: OrderBookValue](q: mutable.PriorityQueue[T]): mutable.Buffer[OrderEntry] = {
       val buffer = mutable.Buffer[T]()
       while(q.nonEmpty) { buffer.append(q.dequeue()) }
       buffer.iterator
@@ -98,7 +98,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       .build()
   }
 
-  private def buildTransaction(b: BuyOrderValue, s: SellOrderValue, amountLimit: Int, priceLimit: Int) = {
+  private def buildTransaction(b: BuyOrderBookValue, s: SellOrderBookValue, amountLimit: Int, priceLimit: Int) = {
     Transaction.builder()
       .id(transactions.size() + 1)
       .amount(amountLimit)

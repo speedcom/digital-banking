@@ -4,7 +4,7 @@ import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
 
 // TODO: we should probably create mutable version of it (for performance)
-sealed trait OrderValue {
+sealed trait OrderBookValue {
   def order: PositionOrder
 
   val price: Int      = order.getDetails.getPrice
@@ -25,21 +25,21 @@ sealed trait OrderValue {
       .build()
   }
 }
-case class SellOrderValue(order: PositionOrder, partiallyExecuted: Boolean = false) extends OrderValue {
+case class SellOrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = false) extends OrderBookValue {
   def ccopy(decreaseByAmountLimit: Int) = this.copy(order = update(decreaseByAmountLimit), true)
 }
-case class BuyOrderValue(order: PositionOrder, partiallyExecuted: Boolean = false) extends OrderValue {
+case class BuyOrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = false) extends OrderBookValue {
   def ccopy(decreaseByAmountLimit: Int) = this.copy(order = update(decreaseByAmountLimit), true)
 }
 
-object BuyOrderValue {
-  val priceDescTimestampAscOrdering = Ordering.by[BuyOrderValue, (Int, Long)] {
+object BuyOrderBookValue {
+  val priceDescTimestampAscOrdering = Ordering.by[BuyOrderBookValue, (Int, Long)] {
     case buy => (buy.order.getDetails.getPrice, -1 * buy.order.getTimestamp)
   }
 }
 
-object SellOrderValue {
-  val priceAscTimestampAscOrdering = Ordering.by[SellOrderValue, (Int, Long)] {
+object SellOrderBookValue {
+  val priceAscTimestampAscOrdering = Ordering.by[SellOrderBookValue, (Int, Long)] {
     case sell => (-1 * sell.order.getDetails.getPrice, -1 * sell.order.getTimestamp)
   }
 }
