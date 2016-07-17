@@ -60,7 +60,6 @@ class ExchangeActor extends Actor with ActorLogging {
         activeBrokers += po.getBroker
         println(s"Active brokers: ${ activeBrokers }")
         val bookActor = bookActorRef(po.getProduct)
-        println(s"Choosen book-actor: $bookActor")
         if(po.getSide == Side.BUY)
           bookActor ! OrderBookActor.BuyOrder(po)
         else
