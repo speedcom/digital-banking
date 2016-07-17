@@ -5,10 +5,7 @@ import com.gft.digitalbank.exchange.model.orders.PositionOrder
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderEntry, Transaction}
 import com.google.common.collect.Sets
 
-import scala.collection.mutable
-import scala.collection.JavaConverters._
-
-import java.util.PriorityQueue
+import java.util.{PriorityQueue => JPriorityQueue, ArrayList => JArrayList}
 
 object OrderBookActor {
   sealed trait BookCommand
@@ -20,8 +17,8 @@ object OrderBookActor {
 class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
   import OrderBookActor._
 
-  private val buy  = new PriorityQueue[OrderBookValue](new BuyOrderComparator)
-  private val sell = new PriorityQueue[OrderBookValue](new SellOrderComparator)
+  private val buy  = new JPriorityQueue[OrderBookValue](new BuyOrderComparator)
+  private val sell = new JPriorityQueue[OrderBookValue](new SellOrderComparator)
 
   private val transactions = Sets.newHashSet[Transaction]()
 
@@ -74,19 +71,22 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
   private def buildOrderBook = {
 
-    def prepareEntries(q: PriorityQueue[OrderBookValue]): mutable.Buffer[OrderEntry] = {
-      val buffer = mutable.Buffer[OrderBookValue]()
-      while(!q.isEmpty) { buffer.append(q.poll()) }
-      buffer.iterator
-        .zipWithIndex
-        .map { case (b, id) => toOrderEntry(b.order, id + 1) }
-        .toBuffer
+    def prepareEntries(q: JPriorityQueue[OrderBookValue]): JArrayList[OrderEntry] = {
+      val entries = new JArrayList[OrderEntry]
+      var id = 1
+
+      while(!q.isEmpty) {
+        entries.add(toOrderEntry(q.poll().order, id))
+        id += 1
+      }
+
+      entries
     }
 
     OrderBook.builder()
       .product(product)
-      .buyEntries(prepareEntries(buy).asJavaCollection)
-      .sellEntries(prepareEntries(sell).asJavaCollection)
+      .buyEntries(prepareEntries(buy))
+      .sellEntries(prepareEntries(sell))
       .build()
   }
 
