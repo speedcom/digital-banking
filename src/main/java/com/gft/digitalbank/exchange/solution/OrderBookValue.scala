@@ -3,6 +3,8 @@ package com.gft.digitalbank.exchange.solution
 import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
 
+import java.util.Comparator
+
 // TODO: we should probably create mutable version of it (for performance)
 case class OrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = false) {
 
@@ -27,14 +29,26 @@ case class OrderBookValue(order: PositionOrder, partiallyExecuted: Boolean = fal
   }
 }
 
-object OrderBookValue {
+class BuyOrderComparator extends Comparator[OrderBookValue] {
 
-  val buyOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case buy =>
-    (buy.price, buy.timestamp * -1)
+  private val buyOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case buy =>
+    (buy.price * -1, buy.timestamp)
   }
 
-  val sellOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case sell =>
-    (sell.price * -1, sell.timestamp * -1)
+  override def compare(o1: OrderBookValue, o2: OrderBookValue): Int = {
+    buyOrdering.compare(o1, o2)
+  }
+}
+
+
+class SellOrderComparator extends Comparator[OrderBookValue] {
+
+  private val sellOrdering = Ordering.by[OrderBookValue, (Int, Long)] { case sell =>
+    (sell.price, sell.timestamp)
+  }
+
+  override def compare(o1: OrderBookValue, o2: OrderBookValue): Int = {
+    sellOrdering.compare(o1, o2)
   }
 
 }
