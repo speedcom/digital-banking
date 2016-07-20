@@ -44,7 +44,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
         def test(obv: OrderBookValue) = obv.order.getId == c.getCancelledOrderId
       }
       buy.removeIf(idMatches)
-      sell.remove(idMatches)
+      sell.removeIf(idMatches)
 
   }
 
