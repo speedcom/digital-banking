@@ -1,7 +1,8 @@
 package com.gft.digitalbank.exchange.solution
 
 import akka.actor.{Actor, ActorRef}
-import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder }
+import com.gft.digitalbank.exchange.model.OrderDetails
+import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder, ModificationOrder, Side }
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderEntry, Transaction}
 import com.google.common.collect.Sets
 import java.util.function.Predicate
@@ -14,6 +15,7 @@ object OrderBookActor {
   case class BuyOrder(po: PositionOrder)   extends BookCommand
   case class SellOrder(po: PositionOrder)  extends BookCommand
   case class CancelOrder(co: CancellationOrder) extends BookCommand
+  case class ModifyOrder(mo: ModificationOrder) extends BookCommand
 }
 
 class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
@@ -27,6 +29,34 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
   private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
     def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId
   }
+
+  private[this] def idMatches(mo: ModificationOrder) = new Predicate[OrderBookValue] {
+    def test(obv: OrderBookValue) = obv.order.getId == mo.getModifiedOrderId
+  }
+
+  private[this] def addBuyOrder(order: ModificationOrder) = PositionOrder.builder()
+      .details(new OrderDetails(
+        order.getDetails.getAmount,
+        order.getDetails.getPrice))
+      .timestamp(order.getTimestamp)
+      //.product(order.getProduct)
+      .broker(order.getBroker)
+      //.client(order.getClient)
+      .side(Side.BUY)
+      .id(order.getId)
+      .build()
+
+  private[this] def addSellOrder(order: ModificationOrder) =  PositionOrder.builder()
+      .details(new OrderDetails(
+        order.getDetails.getAmount,
+        order.getDetails.getPrice))
+      .timestamp(order.getTimestamp)
+      //.product(order.getProduct)
+      .broker(order.getBroker)
+      //.client(order.getClient)
+      .side(Side.SELL)
+      .id(order.getId)
+      .build()
 
   override def receive: Receive = {
     case GetTransactions =>
@@ -46,6 +76,10 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       // check if buy or sell orders contain order with id
       buy.removeIf(idMatches(c))
       sell.removeIf(idMatches(c))
+    case ModifyOrder(m) =>
+      println(s"[OrderBookActor] ModifyOrder: $m")
+      if(buy.removeIf(idMatches(m))) addBuyOrder(m)
+      if(sell.removeIf(idMatches(m))) addSellOrder(m)
 
   }
 
