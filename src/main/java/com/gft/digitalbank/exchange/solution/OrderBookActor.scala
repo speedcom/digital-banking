@@ -1,9 +1,10 @@
 package com.gft.digitalbank.exchange.solution
 
 import akka.actor.{Actor, ActorRef}
-import com.gft.digitalbank.exchange.model.orders.PositionOrder
+import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder }
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderEntry, Transaction}
 import com.google.common.collect.Sets
+import java.util.function.Predicate
 
 import java.util.{PriorityQueue => JPriorityQueue, ArrayList => JArrayList}
 
@@ -12,6 +13,7 @@ object OrderBookActor {
   case object GetTransactions              extends BookCommand
   case class BuyOrder(po: PositionOrder)   extends BookCommand
   case class SellOrder(po: PositionOrder)  extends BookCommand
+  case class CancelOrder(co: CancellationOrder) extends BookCommand
 }
 
 class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
@@ -21,6 +23,10 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
   private val sell = new JPriorityQueue[OrderBookValue](new SellOrderComparator)
 
   private val transactions = Sets.newHashSet[Transaction]()
+
+  private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
+    def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId
+  }
 
   override def receive: Receive = {
     case GetTransactions =>
@@ -35,6 +41,12 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       println(s"[OrderBookActor] SellOrder: $s")
       sell.add(OrderBookValue(s))
       matchTransactions()
+    case CancelOrder(c) =>
+      println(s"[OrderBookActor] CancelOrder: $c")
+      // check if buy or sell orders contain order with id
+      buy.removeIf(idMatches(c))
+      sell.removeIf(idMatches(c))
+
   }
 
   private def matchTransactions(): Unit = {
