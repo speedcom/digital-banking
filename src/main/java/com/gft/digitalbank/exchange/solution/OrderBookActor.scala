@@ -24,6 +24,10 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
   private val transactions = Sets.newHashSet[Transaction]()
 
+  private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
+    def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId
+  }
+
   override def receive: Receive = {
     case GetTransactions =>
       exchangeActorRef ! ExchangeActor.RecordTransactions(transactions)
@@ -40,11 +44,8 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
     case CancelOrder(c) =>
       println(s"[OrderBookActor] CancelOrder: $c")
       // check if buy or sell orders contain order with id
-      val idMatches = new Predicate[OrderBookValue] {
-        def test(obv: OrderBookValue) = obv.order.getId == c.getCancelledOrderId
-      }
-      buy.removeIf(idMatches)
-      sell.removeIf(idMatches)
+      buy.removeIf(idMatches(c))
+      sell.removeIf(idMatches(c))
 
   }
 
