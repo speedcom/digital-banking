@@ -25,7 +25,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
   private val transactions = Sets.newHashSet[Transaction]()
 
   private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
-    def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId
+    def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId && obv.order.getBroker == co.getBroker
   }
 
   override def receive: Receive = {
