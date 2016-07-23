@@ -1,11 +1,14 @@
 package com.gft.digitalbank.exchange.solution
 
 import akka.actor.{Actor, ActorRef}
-import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder }
+import com.gft.digitalbank.exchange.model.OrderDetails
+import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder, ModificationOrder, Side }
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderEntry, Transaction}
 import com.google.common.collect.Sets
-import java.util.function.Predicate
 
+import scala.collection.JavaConverters._
+
+import java.util.function.Predicate
 import java.util.{PriorityQueue => JPriorityQueue, ArrayList => JArrayList}
 
 object OrderBookActor {
@@ -14,6 +17,7 @@ object OrderBookActor {
   case class BuyOrder(po: PositionOrder)   extends BookCommand
   case class SellOrder(po: PositionOrder)  extends BookCommand
   case class CancelOrder(co: CancellationOrder) extends BookCommand
+  case class ModifyOrder(mo: ModificationOrder) extends BookCommand
 }
 
 class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
@@ -26,6 +30,45 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
   private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
     def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId && obv.order.getBroker == co.getBroker
+  }
+
+  private[this] def idMatches(mo: ModificationOrder) = new Predicate[OrderBookValue] {
+    def test(obv: OrderBookValue) = obv.order.getId == mo.getModifiedOrderId
+  }
+
+  private[this] def addBuyOrder(order: ModificationOrder, old: OrderBookValue) = PositionOrder.builder()
+      .details(new OrderDetails(
+        order.getDetails.getAmount,
+        order.getDetails.getPrice))
+      .timestamp(order.getTimestamp)
+      .product(old.order.getProduct)
+      .broker(order.getBroker)
+      .client(old.order.getClient)
+      .side(Side.BUY)
+      .id(old.order.getId)
+      .build()
+
+  private[this] def addSellOrder(order: ModificationOrder, old: OrderBookValue) =  PositionOrder.builder()
+      .details(new OrderDetails(
+        order.getDetails.getAmount,
+        order.getDetails.getPrice))
+      .timestamp(order.getTimestamp)
+      .product(old.order.getProduct)
+      .broker(order.getBroker)
+      .client(old.order.getClient)
+      .side(Side.SELL)
+      .id(old.order.getId)
+      .build()
+
+  private def modifyOrder(pq: JPriorityQueue[OrderBookValue], m: ModificationOrder)(buildModifiedOrder: (ModificationOrder, OrderBookValue) => PositionOrder): Unit = {
+    for {
+      obv <- pq.asScala.find(o => o.order.getId == m.getModifiedOrderId && o.order.getBroker == m.getBroker)
+      mo  = buildModifiedOrder(m, obv)
+      if pq.removeIf(idMatches(m))
+    } yield {
+      pq.add(OrderBookValue(mo, true))
+      matchTransactions()
+    }
   }
 
   override def receive: Receive = {
@@ -46,7 +89,14 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
       // check if buy or sell orders contain order with id
       buy.removeIf(idMatches(c))
       sell.removeIf(idMatches(c))
+    case ModifyOrder(m) =>
+      println(s"[OrderBookActor] ModifyOrder: $m")
 
+      // BUY PART
+      modifyOrder(buy, m)(addBuyOrder)
+
+      // SELL PART
+      modifyOrder(sell, m)(addSellOrder)
   }
 
   private def matchTransactions(): Unit = {

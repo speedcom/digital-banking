@@ -67,7 +67,7 @@ class ExchangeActor extends Actor with ActorLogging {
       case ProcessModificationOrder(mo) =>
         activeBrokers += mo.getBroker
         println(s"Active brokers: ${ activeBrokers }")
-        ???
+        books.values.foreach (_ ! OrderBookActor.ModifyOrder(mo))
       case ProcessCancellationOrder(co) =>
         activeBrokers += co.getBroker
         println(s"Active brokers: ${ activeBrokers }")
