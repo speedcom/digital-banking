@@ -36,33 +36,33 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
     def test(obv: OrderBookValue) = obv.order.getId == mo.getModifiedOrderId
   }
 
-  private[this] def addBuyOrder(order: ModificationOrder, obv: OrderBookValue) = PositionOrder.builder()
+  private[this] def addBuyOrder(order: ModificationOrder, old: OrderBookValue) = PositionOrder.builder()
       .details(new OrderDetails(
         order.getDetails.getAmount,
         order.getDetails.getPrice))
       .timestamp(order.getTimestamp)
-      .product(obv.order.getProduct)
+      .product(old.order.getProduct)
       .broker(order.getBroker)
-      .client(obv.order.getClient)
+      .client(old.order.getClient)
       .side(Side.BUY)
-      .id(order.getId)
+      .id(old.order.getId)
       .build()
 
-  private[this] def addSellOrder(order: ModificationOrder, obv: OrderBookValue) =  PositionOrder.builder()
+  private[this] def addSellOrder(order: ModificationOrder, old: OrderBookValue) =  PositionOrder.builder()
       .details(new OrderDetails(
         order.getDetails.getAmount,
         order.getDetails.getPrice))
       .timestamp(order.getTimestamp)
-      .product(obv.order.getProduct)
+      .product(old.order.getProduct)
       .broker(order.getBroker)
-      .client(obv.order.getClient)
+      .client(old.order.getClient)
       .side(Side.SELL)
-      .id(order.getId)
+      .id(old.order.getId)
       .build()
 
   private def modifyOrder(pq: JPriorityQueue[OrderBookValue], m: ModificationOrder)(buildModifiedOrder: (ModificationOrder, OrderBookValue) => PositionOrder): Unit = {
     for {
-      obv <- pq.asScala.find(_.order.getId == m.getModifiedOrderId)
+      obv <- pq.asScala.find(o => o.order.getId == m.getModifiedOrderId && o.order.getBroker == m.getBroker)
       mo  = buildModifiedOrder(m, obv)
       if pq.removeIf(idMatches(m))
     } yield {
