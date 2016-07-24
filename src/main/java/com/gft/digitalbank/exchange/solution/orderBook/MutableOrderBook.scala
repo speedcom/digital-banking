@@ -1,10 +1,10 @@
 package com.gft.digitalbank.exchange.solution.orderBook
 
 import java.util.function.Predicate
-import java.util.{ArrayList => JArrayList, HashSet => JHashSet}
+import java.util.{HashSet => JHashSet}
 
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder}
-import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, OrderEntry, Transaction}
+import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, Transaction}
 
 class MutableOrderBook(product: String) {
 
@@ -14,7 +14,7 @@ class MutableOrderBook(product: String) {
 
   def getTransactions: JHashSet[Transaction] = transactor.getTransactions
 
-  def getOrderBook: OrderBook = new OrderBookPreparator().prepare
+  def getOrderBook: OrderBook = new OrderBookPreparator(product).prepare(buyOrders, sellOrders)
 
   def handleBuyOrder(po: PositionOrder): Unit = {
     buyOrders.add(po)
@@ -108,38 +108,6 @@ class MutableOrderBook(product: String) {
           matchTransactions()
         case _ =>
       }
-    }
-  }
-
-  private class OrderBookPreparator {
-
-    def prepare: OrderBook = {
-      OrderBook.builder()
-        .product(product)
-        .buyEntries(prepareEntries(buyOrders))
-        .sellEntries(prepareEntries(sellOrders))
-        .build()
-    }
-
-    private[this] def prepareEntries(orders: PositionOrderCollection): JArrayList[OrderEntry] = {
-      val entries = new JArrayList[OrderEntry]
-      var id = 1
-
-      while(orders.nonEmpty) {
-        entries.add(toOrderEntry(orders.poll(), id))
-        id += 1
-      }
-      entries
-    }
-
-    private[this] def toOrderEntry(order: PositionOrder, id: Int) = {
-      OrderEntry.builder()
-        .id(id)
-        .amount(order.getDetails.getAmount)
-        .price(order.getDetails.getPrice)
-        .client(order.getClient)
-        .broker(order.getBroker)
-        .build()
     }
   }
 }
