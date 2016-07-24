@@ -9,7 +9,7 @@ import com.gft.digitalbank.exchange.model.orders.PositionOrder
 
 sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
 
-  private val orders: JPriorityQueue[PositionOrder] = new JPriorityQueue[PositionOrder](comparator)
+  private val orders = new JPriorityQueue[PositionOrder](comparator)
 
   def add(po: PositionOrder): Unit = orders.add(po)
 
