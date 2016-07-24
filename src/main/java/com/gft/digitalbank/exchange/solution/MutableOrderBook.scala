@@ -16,30 +16,22 @@ class MutableOrderBook(product: String) {
 
   private val transactions = Sets.newHashSet[Transaction]()
 
-  private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
-    def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId && obv.order.getBroker == co.getBroker
-  }
-
-  private[this] def idMatches(mo: ModificationOrder) = new Predicate[OrderBookValue] {
-    def test(obv: OrderBookValue) = obv.order.getId == mo.getModifiedOrderId
-  }
-
-  def addBuyOrder(obv: OrderBookValue): Unit = {
+  def handleBuyOrder(obv: OrderBookValue): Unit = {
     buy.add(obv)
     matchTransactions()
   }
 
-  def addSellOrder(obv: OrderBookValue): Unit = {
+  def handleSellOrder(obv: OrderBookValue): Unit = {
     sell.add(obv)
     matchTransactions()
   }
 
-  def cancelOrder(co: CancellationOrder): Unit = {
+  def handleCancellationOrder(co: CancellationOrder): Unit = {
     buy.removeIf(idMatches(co))
     sell.removeIf(idMatches(co))
   }
 
-  def modifyOrder(mo: ModificationOrder): Unit = {
+  def handleModificationOrder(mo: ModificationOrder): Unit = {
     modifyOrder(buy, mo)(addBuyOrder)
     modifyOrder(sell, mo)(addSellOrder)
   }
@@ -67,7 +59,13 @@ class MutableOrderBook(product: String) {
       .build()
   }
 
+  private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
+    def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId && obv.order.getBroker == co.getBroker
+  }
 
+  private[this] def idMatches(mo: ModificationOrder) = new Predicate[OrderBookValue] {
+    def test(obv: OrderBookValue) = obv.order.getId == mo.getModifiedOrderId
+  }
 
   private[this] def addBuyOrder(order: ModificationOrder, old: OrderBookValue) = PositionOrder.builder()
     .details(new OrderDetails(
