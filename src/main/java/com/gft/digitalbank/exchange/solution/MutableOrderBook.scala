@@ -25,6 +25,9 @@ sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrd
   def findBy(modifiedOrderId: Int, broker: String): Option[PositionOrder] = {
     orders.asScala.find(o => o.getId == modifiedOrderId && o.getBroker == broker)
   }
+
+  def isEmpty: Boolean = orders.isEmpty
+  def nonEmpty: Boolean = !isEmpty
 }
 
 final class BuyOrders extends PositionOrderCollection(new BuyOrderComparator)
@@ -141,17 +144,17 @@ class MutableOrderBook(product: String) {
     def prepare: OrderBook = {
       OrderBook.builder()
         .product(product)
-        .buyEntries(prepareEntries(buy.orders))
-        .sellEntries(prepareEntries(sell.orders))
+        .buyEntries(prepareEntries(buy))
+        .sellEntries(prepareEntries(sell))
         .build()
     }
 
-    private[this] def prepareEntries(q: JPriorityQueue[PositionOrder]): JArrayList[OrderEntry] = {
+    private[this] def prepareEntries(orders: PositionOrderCollection): JArrayList[OrderEntry] = {
       val entries = new JArrayList[OrderEntry]
       var id = 1
 
-      while(!q.isEmpty) {
-        entries.add(toOrderEntry(q.poll(), id))
+      while(orders.nonEmpty) {
+        entries.add(toOrderEntry(orders.poll(), id))
         id += 1
       }
       entries
