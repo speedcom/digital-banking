@@ -4,14 +4,30 @@ import java.util.{Comparator, ArrayList => JArrayList, HashSet => JHashSet, Prio
 import java.util.function.Predicate
 
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, OrderEntry, Transaction}
-import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, Side}
+import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder}
 import com.google.common.collect.Sets
 
 import scala.collection.JavaConverters._
 
+sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
+  val orders: JPriorityQueue[PositionOrder] = new JPriorityQueue[PositionOrder](comparator)
+
+  def add(po: PositionOrder): Unit = orders.add(po)
+
+  def removeIf(predicate: Predicate[PositionOrder]): Boolean = orders.removeIf(predicate)
+
+  def peekOpt: Option[PositionOrder] = Option(orders.peek())
+
+  // TODO: should be Option[PositionOrder]
+  def poll(): PositionOrder = orders.poll()
+}
+
+class BuyOrders extends PositionOrderCollection(new BuyOrderComparator)
+//class SellOrders extends PositionOrderCollection(new SellOrderComparator)
+
 class MutableOrderBook(product: String) {
 
-  private val buy  = new JPriorityQueue[PositionOrder](new BuyOrderComparator)
+  private val buy  = new BuyOrders
   private val sell = new JPriorityQueue[PositionOrder](new SellOrderComparator)
 
   private val transactor = new OrderBookTransactor(product)
@@ -32,7 +48,7 @@ class MutableOrderBook(product: String) {
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
-    modifyOrder(buy, mo)(modifyOrder)
+    modifyOrder(buy.orders, mo)(modifyOrder)
     modifyOrder(sell, mo)(modifyOrder)
   }
 
@@ -89,7 +105,7 @@ class MutableOrderBook(product: String) {
 
   private[this] def matchTransactions(): Unit = {
     for {
-      b <- Option(buy.peek())
+      b <- buy.peekOpt
       s <- Option(sell.peek())
       if b.getDetails.getPrice >= s.getDetails.getPrice
       amountLimit = math.min(b.getDetails.getAmount, s.getDetails.getAmount)
@@ -120,7 +136,7 @@ class MutableOrderBook(product: String) {
     def prepare: OrderBook = {
       OrderBook.builder()
         .product(product)
-        .buyEntries(prepareEntries(buy))
+        .buyEntries(prepareEntries(buy.orders))
         .sellEntries(prepareEntries(sell))
         .build()
     }
