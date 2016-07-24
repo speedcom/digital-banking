@@ -36,28 +36,9 @@ class MutableOrderBook(product: String) {
     modifyOrder(sell, mo)(modifyOrder)
   }
 
-  def getTransactions: JHashSet[Transaction] = {
-    transactor.getTransactions
-  }
+  def getTransactions: JHashSet[Transaction] = transactor.getTransactions
 
-  def getOrderBook: OrderBook = {
-    OrderBook.builder()
-      .product(product)
-      .buyEntries(prepareEntries(buy))
-      .sellEntries(prepareEntries(sell))
-      .build()
-  }
-
-  private[this] def prepareEntries(q: JPriorityQueue[PositionOrder]): JArrayList[OrderEntry] = {
-    val entries = new JArrayList[OrderEntry]
-    var id = 1
-
-    while(!q.isEmpty) {
-      entries.add(toOrderEntry(q.poll(), id))
-      id += 1
-    }
-    entries
-  }
+  def getOrderBook: OrderBook = new OrderBookPreparator().prepare
 
   private[this] def idMatches(co: CancellationOrder) = new Predicate[PositionOrder] {
     def test(order: PositionOrder) = order.getId == co.getCancelledOrderId && order.getBroker == co.getBroker
@@ -134,14 +115,36 @@ class MutableOrderBook(product: String) {
     }
   }
 
-  private[this] def toOrderEntry(order: PositionOrder, id: Int) = {
-    OrderEntry.builder()
-      .id(id)
-      .amount(order.getDetails.getAmount)
-      .price(order.getDetails.getPrice)
-      .client(order.getClient)
-      .broker(order.getBroker)
-      .build()
+  private class OrderBookPreparator {
+
+    def prepare: OrderBook = {
+      OrderBook.builder()
+        .product(product)
+        .buyEntries(prepareEntries(buy))
+        .sellEntries(prepareEntries(sell))
+        .build()
+    }
+
+    private[this] def prepareEntries(q: JPriorityQueue[PositionOrder]): JArrayList[OrderEntry] = {
+      val entries = new JArrayList[OrderEntry]
+      var id = 1
+
+      while(!q.isEmpty) {
+        entries.add(toOrderEntry(q.poll(), id))
+        id += 1
+      }
+      entries
+    }
+
+    private[this] def toOrderEntry(order: PositionOrder, id: Int) = {
+      OrderEntry.builder()
+        .id(id)
+        .amount(order.getDetails.getAmount)
+        .price(order.getDetails.getPrice)
+        .client(order.getClient)
+        .broker(order.getBroker)
+        .build()
+    }
   }
 }
 
@@ -149,7 +152,7 @@ final class OrderBookTransactor(product: String) {
 
   private val transactions = Sets.newHashSet[Transaction]()
 
-  def getTransactions = transactions
+  def getTransactions: JHashSet[Transaction] = transactions
 
   def add(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int): Unit = {
     val t = buildTransaction(buy, sell, amountLimit, priceLimit)
