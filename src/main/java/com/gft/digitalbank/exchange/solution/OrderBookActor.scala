@@ -9,8 +9,8 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
   private val orderBook = new MutableOrderBook(product)
 
   override def receive: Receive = {
-    case BuyOrder(b)    => orderBook.handleBuyOrder(OrderBookValue(b))
-    case SellOrder(s)   => orderBook.handleSellOrder(OrderBookValue(s))
+    case BuyOrder(b)    => orderBook.handleBuyOrder(b)
+    case SellOrder(s)   => orderBook.handleSellOrder(s)
     case CancelOrder(c) => orderBook.handleCancellationOrder(c)
     case ModifyOrder(m) => orderBook.handleModificationOrder(m)
     case GetTransactions =>

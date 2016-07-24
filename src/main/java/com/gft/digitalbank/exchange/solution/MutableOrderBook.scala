@@ -1,6 +1,6 @@
 package com.gft.digitalbank.exchange.solution
 
-import java.util.{ArrayList => JArrayList, PriorityQueue => JPriorityQueue, HashSet => JHashSet}
+import java.util.{Comparator, ArrayList => JArrayList, HashSet => JHashSet, PriorityQueue => JPriorityQueue}
 import java.util.function.Predicate
 
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, OrderEntry, Transaction}
@@ -11,18 +11,18 @@ import scala.collection.JavaConverters._
 
 class MutableOrderBook(product: String) {
 
-  private val buy  = new JPriorityQueue[OrderBookValue](new BuyOrderComparator)
-  private val sell = new JPriorityQueue[OrderBookValue](new SellOrderComparator)
+  private val buy  = new JPriorityQueue[PositionOrder](new BuyOrderComparator)
+  private val sell = new JPriorityQueue[PositionOrder](new SellOrderComparator)
 
   private val transactions = Sets.newHashSet[Transaction]()
 
-  def handleBuyOrder(obv: OrderBookValue): Unit = {
-    buy.add(obv)
+  def handleBuyOrder(po: PositionOrder): Unit = {
+    buy.add(po)
     matchTransactions()
   }
 
-  def handleSellOrder(obv: OrderBookValue): Unit = {
-    sell.add(obv)
+  def handleSellOrder(po: PositionOrder): Unit = {
+    sell.add(po)
     matchTransactions()
   }
 
@@ -38,20 +38,7 @@ class MutableOrderBook(product: String) {
 
   def getTransactions: JHashSet[Transaction] = transactions
 
-  def getOrderBook: OrderBook = {
-
-    def prepareEntries(q: JPriorityQueue[OrderBookValue]): JArrayList[OrderEntry] = {
-      val entries = new JArrayList[OrderEntry]
-      var id = 1
-
-      while(!q.isEmpty) {
-        entries.add(toOrderEntry(q.poll().order, id))
-        id += 1
-      }
-
-      entries
-    }
-
+  def getOrderBook = {
     OrderBook.builder()
       .product(product)
       .buyEntries(prepareEntries(buy))
@@ -59,47 +46,72 @@ class MutableOrderBook(product: String) {
       .build()
   }
 
-  private[this] def idMatches(co: CancellationOrder) = new Predicate[OrderBookValue] {
-    def test(obv: OrderBookValue) = obv.order.getId == co.getCancelledOrderId && obv.order.getBroker == co.getBroker
+  private def prepareEntries(q: JPriorityQueue[PositionOrder]): JArrayList[OrderEntry] = {
+    val entries = new JArrayList[OrderEntry]
+    var id = 1
+
+    while(!q.isEmpty) {
+      entries.add(toOrderEntry(q.poll(), id))
+      id += 1
+    }
+    entries
   }
 
-  private[this] def idMatches(mo: ModificationOrder) = new Predicate[OrderBookValue] {
-    def test(obv: OrderBookValue) = obv.order.getId == mo.getModifiedOrderId
+  private[this] def idMatches(co: CancellationOrder) = new Predicate[PositionOrder] {
+    def test(order: PositionOrder) = order.getId == co.getCancelledOrderId && order.getBroker == co.getBroker
   }
 
-  private[this] def addBuyOrder(order: ModificationOrder, old: OrderBookValue) = PositionOrder.builder()
+  private[this] def idMatches(mo: ModificationOrder) = new Predicate[PositionOrder] {
+    def test(order: PositionOrder) = order.getId == mo.getModifiedOrderId
+  }
+
+  private[this] def addBuyOrder(order: ModificationOrder, old: PositionOrder) = PositionOrder.builder()
     .details(new OrderDetails(
       order.getDetails.getAmount,
       order.getDetails.getPrice))
     .timestamp(order.getTimestamp)
-    .product(old.order.getProduct)
+    .product(old.getProduct)
     .broker(order.getBroker)
-    .client(old.order.getClient)
+    .client(old.getClient)
     .side(Side.BUY)
-    .id(old.order.getId)
+    .id(old.getId)
     .build()
 
-  private[this] def addSellOrder(order: ModificationOrder, old: OrderBookValue) =  PositionOrder.builder()
+  private[this] def addSellOrder(order: ModificationOrder, old: PositionOrder) =  PositionOrder.builder()
     .details(new OrderDetails(
       order.getDetails.getAmount,
       order.getDetails.getPrice))
     .timestamp(order.getTimestamp)
-    .product(old.order.getProduct)
+    .product(old.getProduct)
     .broker(order.getBroker)
-    .client(old.order.getClient)
+    .client(old.getClient)
     .side(Side.SELL)
-    .id(old.order.getId)
+    .id(old.getId)
     .build()
 
-  private def modifyOrder(pq: JPriorityQueue[OrderBookValue], m: ModificationOrder)(buildModifiedOrder: (ModificationOrder, OrderBookValue) => PositionOrder): Unit = {
+  private def modifyOrder(pq: JPriorityQueue[PositionOrder], m: ModificationOrder)(buildModifiedOrder: (ModificationOrder, PositionOrder) => PositionOrder): Unit = {
     for {
-      obv <- pq.asScala.find(o => o.order.getId == m.getModifiedOrderId && o.order.getBroker == m.getBroker)
-      mo  = buildModifiedOrder(m, obv)
+      obv <- pq.asScala.find(o => o.getId == m.getModifiedOrderId && o.getBroker == m.getBroker)
+      modifiedOrder = buildModifiedOrder(m, obv)
       if pq.removeIf(idMatches(m))
     } yield {
-      pq.add(OrderBookValue(mo, true))
+      pq.add(modifiedOrder)
       matchTransactions()
     }
+  }
+
+  private def minusAmount(order: PositionOrder, minusAmount: Int): PositionOrder = {
+    PositionOrder.builder()
+      .details(new OrderDetails(
+        order.getDetails.getAmount - minusAmount,
+        order.getDetails.getPrice))
+      .timestamp(order.getTimestamp)
+      .product(order.getProduct)
+      .broker(order.getBroker)
+      .client(order.getClient)
+      .side(order.getSide)
+      .id(order.getId)
+      .build()
   }
 
   private def matchTransactions(): Unit = {
@@ -107,9 +119,9 @@ class MutableOrderBook(product: String) {
     for {
       b <- Option(buy.peek())
       s <- Option(sell.peek())
-      if b.price >= s.price
-      amountLimit = math.min(b.amount, s.amount)
-      priceLimit  = if(b.timestamp < s.timestamp) b.price else s.price
+      if b.getDetails.getPrice >= s.getDetails.getPrice
+      amountLimit = math.min(b.getDetails.getAmount, s.getDetails.getAmount)
+      priceLimit  = if(b.getTimestamp < s.getTimestamp) b.getDetails.getPrice else s.getDetails.getPrice
       transaction = buildTransaction(b, s, amountLimit, priceLimit)
     } yield {
       println(s"[OrderBookActor] Matching: \nbuy-offer: $b \nsell-offer: $s")
@@ -118,16 +130,16 @@ class MutableOrderBook(product: String) {
       buy.poll()
       sell.poll()
 
-      (b.amount > amountLimit, s.amount > amountLimit) match {
+      (b.getDetails.getAmount > amountLimit, s.getDetails.getAmount > amountLimit) match {
         case (true, true) =>
-          buy  add b.update(amountLimit)
-          sell add s.update(amountLimit)
+          buy  add minusAmount(b, amountLimit)
+          sell add minusAmount(s, amountLimit)
           matchTransactions()
         case (true, false) =>
-          buy  add b.update(amountLimit)
+          buy  add minusAmount(b, amountLimit)
           matchTransactions()
         case (false, true) =>
-          sell add s.update(amountLimit)
+          sell add minusAmount(s, amountLimit)
           matchTransactions()
         case _ =>
       }
@@ -144,17 +156,38 @@ class MutableOrderBook(product: String) {
       .build()
   }
 
-  private def buildTransaction(buy: OrderBookValue, sell: OrderBookValue, amountLimit: Int, priceLimit: Int) = {
+  private def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int) = {
     Transaction.builder()
       .id(transactions.size() + 1)
       .amount(amountLimit)
       .price(priceLimit)
-      .brokerBuy(buy.order.getBroker)
-      .brokerSell(sell.order.getBroker)
-      .clientBuy(buy.order.getClient)
-      .clientSell(sell.order.getClient)
+      .brokerBuy(buy.getBroker)
+      .brokerSell(sell.getBroker)
+      .clientBuy(buy.getClient)
+      .clientSell(sell.getClient)
       .product(product)
       .build()
   }
+}
 
+final class BuyOrderComparator extends Comparator[PositionOrder] {
+
+  private val buyOrdering = Ordering.by[PositionOrder, (Int, Long)] { buy =>
+    (buy.getDetails.getPrice * -1, buy.getTimestamp)
+  }
+
+  override def compare(o1: PositionOrder, o2: PositionOrder): Int = {
+    buyOrdering.compare(o1, o2)
+  }
+}
+
+final class SellOrderComparator extends Comparator[PositionOrder] {
+
+  private val sellOrdering = Ordering.by[PositionOrder, (Int, Long)] { sell =>
+    (sell.getDetails.getPrice, sell.getTimestamp)
+  }
+
+  override def compare(o1: PositionOrder, o2: PositionOrder): Int = {
+    sellOrdering.compare(o1, o2)
+  }
 }
