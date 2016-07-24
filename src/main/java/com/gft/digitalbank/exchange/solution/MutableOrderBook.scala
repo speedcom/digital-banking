@@ -9,55 +9,30 @@ import com.google.common.collect.Sets
 
 import scala.collection.JavaConverters._
 
-sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
-  // TODO: should be private
-  val orders: JPriorityQueue[PositionOrder] = new JPriorityQueue[PositionOrder](comparator)
-
-  def add(po: PositionOrder): Unit = orders.add(po)
-
-  def removeIf(predicate: Predicate[PositionOrder]): Boolean = orders.removeIf(predicate)
-
-  def peekOpt: Option[PositionOrder] = Option(orders.peek())
-
-  // TODO: should be Option[PositionOrder]
-  def poll(): PositionOrder = orders.poll()
-
-  def findBy(modifiedOrderId: Int, broker: String): Option[PositionOrder] = {
-    orders.asScala.find(o => o.getId == modifiedOrderId && o.getBroker == broker)
-  }
-
-  def isEmpty: Boolean = orders.isEmpty
-  def nonEmpty: Boolean = !isEmpty
-}
-
-final class BuyOrders extends PositionOrderCollection(new BuyOrderComparator)
-final class SellOrders extends PositionOrderCollection(new SellOrderComparator)
-
 class MutableOrderBook(product: String) {
 
-  private val buy  = new BuyOrders
-  private val sell = new SellOrders
-
+  private val buyOrders  = new BuyOrders
+  private val sellOrders = new SellOrders
   private val transactor = new OrderBookTransactor(product)
 
   def handleBuyOrder(po: PositionOrder): Unit = {
-    buy.add(po)
+    buyOrders.add(po)
     matchTransactions()
   }
 
   def handleSellOrder(po: PositionOrder): Unit = {
-    sell.add(po)
+    sellOrders.add(po)
     matchTransactions()
   }
 
   def handleCancellationOrder(co: CancellationOrder): Unit = {
-    buy.removeIf(idMatches(co))
-    sell.removeIf(idMatches(co))
+    buyOrders.removeIf(idMatches(co))
+    sellOrders.removeIf(idMatches(co))
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
-    modifyOrder(buy, mo)
-    modifyOrder(sell, mo)
+    modifyOrder(buyOrders, mo)
+    modifyOrder(sellOrders, mo)
   }
 
   def getTransactions: JHashSet[Transaction] = transactor.getTransactions
@@ -113,26 +88,26 @@ class MutableOrderBook(product: String) {
 
   private[this] def matchTransactions(): Unit = {
     for {
-      b <- buy.peekOpt
-      s <- sell.peekOpt
+      b <- buyOrders.peekOpt
+      s <- sellOrders.peekOpt
       if b.getDetails.getPrice >= s.getDetails.getPrice
       amountLimit = math.min(b.getDetails.getAmount, s.getDetails.getAmount)
       priceLimit  = if(b.getTimestamp < s.getTimestamp) b.getDetails.getPrice else s.getDetails.getPrice
     } yield {
       transactor.add(b, s, amountLimit, priceLimit)
-      buy.poll()
-      sell.poll()
+      buyOrders.poll()
+      sellOrders.poll()
 
       (b.getDetails.getAmount > amountLimit, s.getDetails.getAmount > amountLimit) match {
         case (true, true) =>
-          buy  add orderMinusAmount(b, amountLimit)
-          sell add orderMinusAmount(s, amountLimit)
+          buyOrders  add orderMinusAmount(b, amountLimit)
+          sellOrders add orderMinusAmount(s, amountLimit)
           matchTransactions()
         case (true, false) =>
-          buy  add orderMinusAmount(b, amountLimit)
+          buyOrders  add orderMinusAmount(b, amountLimit)
           matchTransactions()
         case (false, true) =>
-          sell add orderMinusAmount(s, amountLimit)
+          sellOrders add orderMinusAmount(s, amountLimit)
           matchTransactions()
         case _ =>
       }
@@ -144,8 +119,8 @@ class MutableOrderBook(product: String) {
     def prepare: OrderBook = {
       OrderBook.builder()
         .product(product)
-        .buyEntries(prepareEntries(buy))
-        .sellEntries(prepareEntries(sell))
+        .buyEntries(prepareEntries(buyOrders))
+        .sellEntries(prepareEntries(sellOrders))
         .build()
     }
 
@@ -196,6 +171,29 @@ final class OrderBookTransactor(product: String) {
       .build()
   }
 }
+
+sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
+
+  private val orders: JPriorityQueue[PositionOrder] = new JPriorityQueue[PositionOrder](comparator)
+
+  def add(po: PositionOrder): Unit = orders.add(po)
+
+  def removeIf(predicate: Predicate[PositionOrder]): Boolean = orders.removeIf(predicate)
+
+  def peekOpt: Option[PositionOrder] = Option(orders.peek())
+
+  def poll(): PositionOrder = orders.poll()
+
+  def findBy(modifiedOrderId: Int, broker: String): Option[PositionOrder] = {
+    orders.asScala.find(o => o.getId == modifiedOrderId && o.getBroker == broker)
+  }
+
+  def isEmpty: Boolean  = orders.isEmpty
+  def nonEmpty: Boolean = !isEmpty
+}
+
+final class BuyOrders  extends PositionOrderCollection(new BuyOrderComparator)
+final class SellOrders extends PositionOrderCollection(new SellOrderComparator)
 
 final class BuyOrderComparator extends Comparator[PositionOrder] {
 
