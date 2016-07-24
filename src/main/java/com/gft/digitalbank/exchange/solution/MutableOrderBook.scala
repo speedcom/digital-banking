@@ -10,6 +10,7 @@ import com.google.common.collect.Sets
 import scala.collection.JavaConverters._
 
 sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
+  // TODO: should be private
   val orders: JPriorityQueue[PositionOrder] = new JPriorityQueue[PositionOrder](comparator)
 
   def add(po: PositionOrder): Unit = orders.add(po)
@@ -22,13 +23,13 @@ sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrd
   def poll(): PositionOrder = orders.poll()
 }
 
-class BuyOrders extends PositionOrderCollection(new BuyOrderComparator)
-//class SellOrders extends PositionOrderCollection(new SellOrderComparator)
+final class BuyOrders extends PositionOrderCollection(new BuyOrderComparator)
+final class SellOrders extends PositionOrderCollection(new SellOrderComparator)
 
 class MutableOrderBook(product: String) {
 
   private val buy  = new BuyOrders
-  private val sell = new JPriorityQueue[PositionOrder](new SellOrderComparator)
+  private val sell = new SellOrders
 
   private val transactor = new OrderBookTransactor(product)
 
@@ -49,7 +50,7 @@ class MutableOrderBook(product: String) {
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
     modifyOrder(buy.orders, mo)(modifyOrder)
-    modifyOrder(sell, mo)(modifyOrder)
+    modifyOrder(sell.orders, mo)(modifyOrder)
   }
 
   def getTransactions: JHashSet[Transaction] = transactor.getTransactions
@@ -106,7 +107,7 @@ class MutableOrderBook(product: String) {
   private[this] def matchTransactions(): Unit = {
     for {
       b <- buy.peekOpt
-      s <- Option(sell.peek())
+      s <- sell.peekOpt
       if b.getDetails.getPrice >= s.getDetails.getPrice
       amountLimit = math.min(b.getDetails.getAmount, s.getDetails.getAmount)
       priceLimit  = if(b.getTimestamp < s.getTimestamp) b.getDetails.getPrice else s.getDetails.getPrice
@@ -137,7 +138,7 @@ class MutableOrderBook(product: String) {
       OrderBook.builder()
         .product(product)
         .buyEntries(prepareEntries(buy.orders))
-        .sellEntries(prepareEntries(sell))
+        .sellEntries(prepareEntries(sell.orders))
         .build()
     }
 
