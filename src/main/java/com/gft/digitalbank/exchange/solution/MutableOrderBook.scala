@@ -40,7 +40,7 @@ class MutableOrderBook(product: String) {
     transactor.getTransactions
   }
 
-  def getOrderBook = {
+  def getOrderBook: OrderBook = {
     OrderBook.builder()
       .product(product)
       .buyEntries(prepareEntries(buy))
