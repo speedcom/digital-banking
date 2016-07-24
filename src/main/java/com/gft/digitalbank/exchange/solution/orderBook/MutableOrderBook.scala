@@ -5,6 +5,7 @@ import java.util.{HashSet => JHashSet}
 
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder}
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, Transaction}
+import PositionOrderOps._
 
 class MutableOrderBook(product: String) {
 
@@ -69,20 +70,6 @@ class MutableOrderBook(product: String) {
     }
   }
 
-  private[this] def orderMinusAmount(order: PositionOrder, minusAmount: Int) = {
-    PositionOrder.builder()
-      .details(new OrderDetails(
-        order.getDetails.getAmount - minusAmount,
-        order.getDetails.getPrice))
-      .timestamp(order.getTimestamp)
-      .product(order.getProduct)
-      .broker(order.getBroker)
-      .client(order.getClient)
-      .side(order.getSide)
-      .id(order.getId)
-      .build()
-  }
-
   private[this] def matchTransactions(): Unit = {
     for {
       b <- buyOrders.peekOpt
@@ -97,14 +84,14 @@ class MutableOrderBook(product: String) {
 
       (b.getDetails.getAmount > amountLimit, s.getDetails.getAmount > amountLimit) match {
         case (true, true) =>
-          buyOrders  add orderMinusAmount(b, amountLimit)
-          sellOrders add orderMinusAmount(s, amountLimit)
+          buyOrders  add b.minusAmount(amountLimit)
+          sellOrders add s.minusAmount(amountLimit)
           matchTransactions()
         case (true, false) =>
-          buyOrders  add orderMinusAmount(b, amountLimit)
+          buyOrders  add b.minusAmount(amountLimit)
           matchTransactions()
         case (false, true) =>
-          sellOrders add orderMinusAmount(s, amountLimit)
+          sellOrders add s.minusAmount(amountLimit)
           matchTransactions()
         case _ =>
       }
