@@ -1,19 +1,20 @@
-package com.gft.digitalbank.exchange.solution
+package com.gft.digitalbank.exchange.solution.orderBook
 
-import java.util.{Comparator, ArrayList => JArrayList, HashSet => JHashSet, PriorityQueue => JPriorityQueue}
 import java.util.function.Predicate
+import java.util.{ArrayList => JArrayList, HashSet => JHashSet}
 
-import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, OrderEntry, Transaction}
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder}
-import com.google.common.collect.Sets
-
-import scala.collection.JavaConverters._
+import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails, OrderEntry, Transaction}
 
 class MutableOrderBook(product: String) {
 
   private val buyOrders  = new BuyOrders
   private val sellOrders = new SellOrders
   private val transactor = new OrderBookTransactor(product)
+
+  def getTransactions: JHashSet[Transaction] = transactor.getTransactions
+
+  def getOrderBook: OrderBook = new OrderBookPreparator().prepare
 
   def handleBuyOrder(po: PositionOrder): Unit = {
     buyOrders.add(po)
@@ -34,10 +35,6 @@ class MutableOrderBook(product: String) {
     modifyOrder(buyOrders, mo)
     modifyOrder(sellOrders, mo)
   }
-
-  def getTransactions: JHashSet[Transaction] = transactor.getTransactions
-
-  def getOrderBook: OrderBook = new OrderBookPreparator().prepare
 
   private[this] def idMatches(co: CancellationOrder) = new Predicate[PositionOrder] {
     def test(order: PositionOrder) = order.getId == co.getCancelledOrderId && order.getBroker == co.getBroker
@@ -144,75 +141,5 @@ class MutableOrderBook(product: String) {
         .broker(order.getBroker)
         .build()
     }
-  }
-}
-
-final class OrderBookTransactor(product: String) {
-
-  private val transactions = Sets.newHashSet[Transaction]()
-
-  def getTransactions: JHashSet[Transaction] = transactions
-
-  def add(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int): Unit = {
-    val t = buildTransaction(buy, sell, amountLimit, priceLimit)
-    transactions.add(t)
-  }
-
-  private[this] def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int) = {
-    Transaction.builder()
-      .id(transactions.size() + 1)
-      .amount(amountLimit)
-      .price(priceLimit)
-      .brokerBuy(buy.getBroker)
-      .brokerSell(sell.getBroker)
-      .clientBuy(buy.getClient)
-      .clientSell(sell.getClient)
-      .product(product)
-      .build()
-  }
-}
-
-sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
-
-  private val orders: JPriorityQueue[PositionOrder] = new JPriorityQueue[PositionOrder](comparator)
-
-  def add(po: PositionOrder): Unit = orders.add(po)
-
-  def removeIf(predicate: Predicate[PositionOrder]): Boolean = orders.removeIf(predicate)
-
-  def peekOpt: Option[PositionOrder] = Option(orders.peek())
-
-  def poll(): PositionOrder = orders.poll()
-
-  def findBy(modifiedOrderId: Int, broker: String): Option[PositionOrder] = {
-    orders.asScala.find(o => o.getId == modifiedOrderId && o.getBroker == broker)
-  }
-
-  def isEmpty: Boolean  = orders.isEmpty
-  def nonEmpty: Boolean = !isEmpty
-}
-
-final class BuyOrders  extends PositionOrderCollection(new BuyOrderComparator)
-final class SellOrders extends PositionOrderCollection(new SellOrderComparator)
-
-final class BuyOrderComparator extends Comparator[PositionOrder] {
-
-  private val buyOrdering = Ordering.by[PositionOrder, (Int, Long)] { buy =>
-    (buy.getDetails.getPrice * -1, buy.getTimestamp)
-  }
-
-  override def compare(o1: PositionOrder, o2: PositionOrder): Int = {
-    buyOrdering.compare(o1, o2)
-  }
-}
-
-final class SellOrderComparator extends Comparator[PositionOrder] {
-
-  private val sellOrdering = Ordering.by[PositionOrder, (Int, Long)] { sell =>
-    (sell.getDetails.getPrice, sell.getTimestamp)
-  }
-
-  override def compare(o1: PositionOrder, o2: PositionOrder): Int = {
-    sellOrdering.compare(o1, o2)
   }
 }
