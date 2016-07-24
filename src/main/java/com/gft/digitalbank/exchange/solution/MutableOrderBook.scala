@@ -21,6 +21,10 @@ sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrd
 
   // TODO: should be Option[PositionOrder]
   def poll(): PositionOrder = orders.poll()
+
+  def findBy(modifiedOrderId: Int, broker: String): Option[PositionOrder] = {
+    orders.asScala.find(o => o.getId == modifiedOrderId && o.getBroker == broker)
+  }
 }
 
 final class BuyOrders extends PositionOrderCollection(new BuyOrderComparator)
@@ -49,8 +53,8 @@ class MutableOrderBook(product: String) {
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
-    modifyOrder(buy.orders, mo)(modifyOrder)
-    modifyOrder(sell.orders, mo)(modifyOrder)
+    modifyOrder(buy, mo)
+    modifyOrder(sell, mo)
   }
 
   def getTransactions: JHashSet[Transaction] = transactor.getTransactions
@@ -79,13 +83,13 @@ class MutableOrderBook(product: String) {
       .build()
   }
 
-  private[this] def modifyOrder(pq: JPriorityQueue[PositionOrder], m: ModificationOrder)(buildModifiedOrder: (ModificationOrder, PositionOrder) => PositionOrder): Unit = {
+  private[this] def modifyOrder(orders: PositionOrderCollection, m: ModificationOrder): Unit = {
     for {
-      obv <- pq.asScala.find(o => o.getId == m.getModifiedOrderId && o.getBroker == m.getBroker)
-      modifiedOrder = buildModifiedOrder(m, obv)
-      if pq.removeIf(idMatches(m))
+      obv <- orders.findBy(m.getModifiedOrderId, m.getBroker)
+      modifiedOrder = modifyOrder(m, obv)
+      if orders.removeIf(idMatches(m))
     } yield {
-      pq.add(modifiedOrder)
+      orders.add(modifiedOrder)
       matchTransactions()
     }
   }
