@@ -14,7 +14,7 @@ class MutableOrderBook(product: String) {
   private val buy  = new JPriorityQueue[PositionOrder](new BuyOrderComparator)
   private val sell = new JPriorityQueue[PositionOrder](new SellOrderComparator)
 
-  private val transactions = Sets.newHashSet[Transaction]()
+  private val transactor = new OrderBookTransactor(product)
 
   def handleBuyOrder(po: PositionOrder): Unit = {
     buy.add(po)
@@ -32,11 +32,13 @@ class MutableOrderBook(product: String) {
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
-    modifyOrder(buy, mo)(addBuyOrder)
-    modifyOrder(sell, mo)(addSellOrder)
+    modifyOrder(buy, mo)(modifyOrder)
+    modifyOrder(sell, mo)(modifyOrder)
   }
 
-  def getTransactions: JHashSet[Transaction] = transactions
+  def getTransactions: JHashSet[Transaction] = {
+    transactor.getTransactions
+  }
 
   def getOrderBook = {
     OrderBook.builder()
@@ -46,7 +48,7 @@ class MutableOrderBook(product: String) {
       .build()
   }
 
-  private def prepareEntries(q: JPriorityQueue[PositionOrder]): JArrayList[OrderEntry] = {
+  private[this] def prepareEntries(q: JPriorityQueue[PositionOrder]): JArrayList[OrderEntry] = {
     val entries = new JArrayList[OrderEntry]
     var id = 1
 
@@ -65,31 +67,21 @@ class MutableOrderBook(product: String) {
     def test(order: PositionOrder) = order.getId == mo.getModifiedOrderId
   }
 
-  private[this] def addBuyOrder(order: ModificationOrder, old: PositionOrder) = PositionOrder.builder()
-    .details(new OrderDetails(
-      order.getDetails.getAmount,
-      order.getDetails.getPrice))
-    .timestamp(order.getTimestamp)
-    .product(old.getProduct)
-    .broker(order.getBroker)
-    .client(old.getClient)
-    .side(Side.BUY)
-    .id(old.getId)
-    .build()
+  private[this] def modifyOrder(order: ModificationOrder, old: PositionOrder) = {
+    PositionOrder.builder()
+      .details(new OrderDetails(
+        order.getDetails.getAmount,
+        order.getDetails.getPrice))
+      .timestamp(order.getTimestamp)
+      .product(old.getProduct)
+      .broker(order.getBroker)
+      .client(old.getClient)
+      .side(old.getSide)
+      .id(old.getId)
+      .build()
+  }
 
-  private[this] def addSellOrder(order: ModificationOrder, old: PositionOrder) =  PositionOrder.builder()
-    .details(new OrderDetails(
-      order.getDetails.getAmount,
-      order.getDetails.getPrice))
-    .timestamp(order.getTimestamp)
-    .product(old.getProduct)
-    .broker(order.getBroker)
-    .client(old.getClient)
-    .side(Side.SELL)
-    .id(old.getId)
-    .build()
-
-  private def modifyOrder(pq: JPriorityQueue[PositionOrder], m: ModificationOrder)(buildModifiedOrder: (ModificationOrder, PositionOrder) => PositionOrder): Unit = {
+  private[this] def modifyOrder(pq: JPriorityQueue[PositionOrder], m: ModificationOrder)(buildModifiedOrder: (ModificationOrder, PositionOrder) => PositionOrder): Unit = {
     for {
       obv <- pq.asScala.find(o => o.getId == m.getModifiedOrderId && o.getBroker == m.getBroker)
       modifiedOrder = buildModifiedOrder(m, obv)
@@ -100,7 +92,7 @@ class MutableOrderBook(product: String) {
     }
   }
 
-  private def minusAmount(order: PositionOrder, minusAmount: Int): PositionOrder = {
+  private[this] def orderMinusAmount(order: PositionOrder, minusAmount: Int) = {
     PositionOrder.builder()
       .details(new OrderDetails(
         order.getDetails.getAmount - minusAmount,
@@ -114,39 +106,35 @@ class MutableOrderBook(product: String) {
       .build()
   }
 
-  private def matchTransactions(): Unit = {
-    println("Starting matching")
+  private[this] def matchTransactions(): Unit = {
     for {
       b <- Option(buy.peek())
       s <- Option(sell.peek())
       if b.getDetails.getPrice >= s.getDetails.getPrice
       amountLimit = math.min(b.getDetails.getAmount, s.getDetails.getAmount)
       priceLimit  = if(b.getTimestamp < s.getTimestamp) b.getDetails.getPrice else s.getDetails.getPrice
-      transaction = buildTransaction(b, s, amountLimit, priceLimit)
     } yield {
-      println(s"[OrderBookActor] Matching: \nbuy-offer: $b \nsell-offer: $s")
-
-      transactions.add(transaction)
+      transactor.add(b, s, amountLimit, priceLimit)
       buy.poll()
       sell.poll()
 
       (b.getDetails.getAmount > amountLimit, s.getDetails.getAmount > amountLimit) match {
         case (true, true) =>
-          buy  add minusAmount(b, amountLimit)
-          sell add minusAmount(s, amountLimit)
+          buy  add orderMinusAmount(b, amountLimit)
+          sell add orderMinusAmount(s, amountLimit)
           matchTransactions()
         case (true, false) =>
-          buy  add minusAmount(b, amountLimit)
+          buy  add orderMinusAmount(b, amountLimit)
           matchTransactions()
         case (false, true) =>
-          sell add minusAmount(s, amountLimit)
+          sell add orderMinusAmount(s, amountLimit)
           matchTransactions()
         case _ =>
       }
     }
   }
 
-  private def toOrderEntry(order: PositionOrder, id: Int) = {
+  private[this] def toOrderEntry(order: PositionOrder, id: Int) = {
     OrderEntry.builder()
       .id(id)
       .amount(order.getDetails.getAmount)
@@ -155,8 +143,20 @@ class MutableOrderBook(product: String) {
       .broker(order.getBroker)
       .build()
   }
+}
 
-  private def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int) = {
+final class OrderBookTransactor(product: String) {
+
+  private val transactions = Sets.newHashSet[Transaction]()
+
+  def getTransactions = transactions
+
+  def add(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int): Unit = {
+    val t = buildTransaction(buy, sell, amountLimit, priceLimit)
+    transactions.add(t)
+  }
+
+  private[this] def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int) = {
     Transaction.builder()
       .id(transactions.size() + 1)
       .amount(amountLimit)
