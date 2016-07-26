@@ -12,7 +12,7 @@ final class OrderBookTransactor(product: String) {
 
   def getTransactions: Transactions = Transactions(transactions)
 
-  def add(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int): Unit = {
+  def add(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int): Boolean = {
     val t = buildTransaction(buy, sell, amountLimit, priceLimit)
     transactions.add(t)
   }

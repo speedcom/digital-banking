@@ -65,26 +65,26 @@ class MutableOrderBook(product: String) {
 
   private[this] def matchOrders(): Unit = {
     for {
-      b <- buyOrders.peekOpt
-      s <- sellOrders.peekOpt
-      if b.getDetails.getPrice >= s.getDetails.getPrice
-      amountLimit = math.min(b.getDetails.getAmount, s.getDetails.getAmount)
-      priceLimit  = if(b.getTimestamp < s.getTimestamp) b.getDetails.getPrice else s.getDetails.getPrice
+      bestBuyOrder  <- buyOrders.peekOpt
+      bestSellOrder <- sellOrders.peekOpt
+      if bestBuyOrder.getDetails.getPrice >= bestSellOrder.getDetails.getPrice
+      amountLimit = math.min(bestBuyOrder.getDetails.getAmount, bestSellOrder.getDetails.getAmount)
+      priceLimit  = if(bestBuyOrder.getTimestamp < bestSellOrder.getTimestamp) bestBuyOrder.getDetails.getPrice else bestSellOrder.getDetails.getPrice
+      if transactor.add(bestBuyOrder, bestSellOrder, amountLimit, priceLimit)
     } yield {
-      transactor.add(b, s, amountLimit, priceLimit)
       buyOrders.poll()
       sellOrders.poll()
 
-      (b.getDetails.getAmount > amountLimit, s.getDetails.getAmount > amountLimit) match {
+      (bestBuyOrder.getDetails.getAmount > amountLimit, bestSellOrder.getDetails.getAmount > amountLimit) match {
         case (true, true) =>
-          buyOrders  add b.minusAmount(amountLimit)
-          sellOrders add s.minusAmount(amountLimit)
+          buyOrders  add bestBuyOrder.minusAmount(amountLimit)
+          sellOrders add bestSellOrder.minusAmount(amountLimit)
           matchOrders()
         case (true, false) =>
-          buyOrders  add b.minusAmount(amountLimit)
+          buyOrders  add bestBuyOrder.minusAmount(amountLimit)
           matchOrders()
         case (false, true) =>
-          sellOrders add s.minusAmount(amountLimit)
+          sellOrders add bestSellOrder.minusAmount(amountLimit)
           matchOrders()
         case _ =>
       }
