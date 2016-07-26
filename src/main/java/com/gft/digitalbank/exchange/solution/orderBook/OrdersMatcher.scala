@@ -6,7 +6,7 @@ case class PriceLimit(price: Int) extends AnyVal
 case class AmountLimit(amount: Int) extends AnyVal
 case class MatchedOrders(bestBuyOffer: PositionOrder, bestSellOffer: PositionOrder, priceLimit: PriceLimit, amountLimit: AmountLimit)
 
-class OrdersMatcher(buyOrders: BuyOrders, sellOrders: SellOrders) {
+private[orderBook] class OrdersMatcher(buyOrders: BuyOrders, sellOrders: SellOrders) {
 
   def matchOrders(): Option[MatchedOrders] = {
     for {

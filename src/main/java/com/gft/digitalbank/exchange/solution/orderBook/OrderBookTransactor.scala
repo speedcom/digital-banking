@@ -6,7 +6,7 @@ import com.gft.digitalbank.exchange.model.Transaction
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
 import com.google.common.collect.Sets
 
-final class OrderBookTransactor(product: String) {
+private[orderBook] final class OrderBookTransactor(product: String) {
 
   private val transactions = Sets.newHashSet[Transaction]()
 

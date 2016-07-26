@@ -3,7 +3,7 @@ package com.gft.digitalbank.exchange.solution.orderBook
 import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders.{ModificationOrder, PositionOrder}
 
-object PositionOrderOps {
+private[orderBook] object PositionOrderOps {
 
   implicit class PositionOrderPatch(po: PositionOrder) {
 
