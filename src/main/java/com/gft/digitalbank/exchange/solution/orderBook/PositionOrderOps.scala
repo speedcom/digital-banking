@@ -7,10 +7,10 @@ object PositionOrderOps {
 
   implicit class PositionOrderPatch(order: PositionOrder) {
 
-    def minusAmount(amount: Int): PositionOrder = {
+    def minusAmount(limit: AmountLimit): PositionOrder = {
       PositionOrder.builder()
         .details(new OrderDetails(
-          order.getDetails.getAmount - amount,
+          order.getDetails.getAmount - limit.amount,
           order.getDetails.getPrice))
         .timestamp(order.getTimestamp)
         .product(order.getProduct)

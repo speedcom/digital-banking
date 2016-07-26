@@ -12,16 +12,16 @@ final class OrderBookTransactor(product: String) {
 
   def getTransactions: Transactions = Transactions(transactions)
 
-  def add(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int): Boolean = {
+  def add(buy: PositionOrder, sell: PositionOrder, amountLimit: AmountLimit, priceLimit: PriceLimit): Boolean = {
     val t = buildTransaction(buy, sell, amountLimit, priceLimit)
     transactions.add(t)
   }
 
-  private[this] def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int) = {
+  private[this] def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: AmountLimit, priceLimit: PriceLimit) = {
     Transaction.builder()
       .id(transactions.size() + 1)
-      .amount(amountLimit)
-      .price(priceLimit)
+      .amount(amountLimit.amount)
+      .price(priceLimit.price)
       .brokerBuy(buy.getBroker)
       .brokerSell(sell.getBroker)
       .clientBuy(buy.getClient)

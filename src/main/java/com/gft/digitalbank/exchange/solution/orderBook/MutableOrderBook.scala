@@ -9,6 +9,7 @@ class MutableOrderBook(product: String) {
   private val buyOrders  = new BuyOrders
   private val sellOrders = new SellOrders
   private val transactor = new OrderBookTransactor(product)
+  private val matcher    = new OrdersMatcher(buyOrders, sellOrders)
 
   def getTransactions: Transactions = transactor.getTransactions
 
@@ -16,12 +17,12 @@ class MutableOrderBook(product: String) {
 
   def handleBuyOrder(po: PositionOrder): Unit = {
     buyOrders.add(po)
-    matchOrders()
+    runOrderBook()
   }
 
   def handleSellOrder(po: PositionOrder): Unit = {
     sellOrders.add(po)
-    matchOrders()
+    runOrderBook()
   }
 
   def handleCancellationOrder(co: CancellationOrder): Unit = {
@@ -56,34 +57,35 @@ class MutableOrderBook(product: String) {
       if orders.removeIf(_.getId == mo.getModifiedOrderId)
     } yield {
       orders.add(updatedOrder)
-      matchOrders()
+      runOrderBook()
     }
   }
 
-  private[this] def matchOrders(): Unit = {
+  private[this] def runOrderBook(): Unit = {
     for {
-      bestBuyOrder  <- buyOrders.peekOpt
-      bestSellOrder <- sellOrders.peekOpt
-      if bestBuyOrder.getDetails.getPrice >= bestSellOrder.getDetails.getPrice
-      amountLimit = math.min(bestBuyOrder.getDetails.getAmount, bestSellOrder.getDetails.getAmount)
-      priceLimit  = if(bestBuyOrder.getTimestamp < bestSellOrder.getTimestamp) bestBuyOrder.getDetails.getPrice else bestSellOrder.getDetails.getPrice
-      if transactor.add(bestBuyOrder, bestSellOrder, amountLimit, priceLimit)
+      matched <- matcher.matchOrders()
+      if transactor.add(matched.bestBuyOffer, matched.bestSellOffer, matched.amountLimit, matched.priceLimit)
+      _ <- Option(buyOrders.poll())
+      _ <- Option(sellOrders.poll())
     } yield {
-      buyOrders.poll()
-      sellOrders.poll()
+      val hasBuyEnoughAmount  = matched.bestBuyOffer.getDetails.getAmount  > matched.amountLimit.amount
+      val hasSellEnoughAmount = matched.bestSellOffer.getDetails.getAmount > matched.amountLimit.amount
 
-      (bestBuyOrder.getDetails.getAmount > amountLimit, bestSellOrder.getDetails.getAmount > amountLimit) match {
-        case (true, true) =>
-          buyOrders  add bestBuyOrder.minusAmount(amountLimit)
-          sellOrders add bestSellOrder.minusAmount(amountLimit)
-          matchOrders()
-        case (true, false) =>
-          buyOrders  add bestBuyOrder.minusAmount(amountLimit)
-          matchOrders()
-        case (false, true) =>
-          sellOrders add bestSellOrder.minusAmount(amountLimit)
-          matchOrders()
-        case _ =>
+      def addBuyOrderWithRestAmount  = buyOrders.add(matched.bestBuyOffer.minusAmount(matched.amountLimit))
+      def addSellOrderWithRestAmount = sellOrders.add(matched.bestSellOffer.minusAmount(matched.amountLimit))
+
+      if(hasBuyEnoughAmount && hasSellEnoughAmount) {
+        addBuyOrderWithRestAmount
+        addSellOrderWithRestAmount
+        runOrderBook()
+      }
+      else if(hasBuyEnoughAmount) {
+        addBuyOrderWithRestAmount
+        runOrderBook()
+      }
+      else if(hasSellEnoughAmount) {
+        addSellOrderWithRestAmount
+        runOrderBook()
       }
     }
   }
