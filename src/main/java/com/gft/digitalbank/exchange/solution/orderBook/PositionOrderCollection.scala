@@ -13,7 +13,11 @@ sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrd
 
   def add(po: PositionOrder): Unit = orders.add(po)
 
-  def removeIf(predicate: Predicate[PositionOrder]): Boolean = orders.removeIf(predicate)
+  def removeIf(predicate: PositionOrder => Boolean): Boolean = {
+    orders.removeIf(new Predicate[PositionOrder] {
+      override def test(t: PositionOrder): Boolean = predicate(t)
+    })
+  }
 
   def peekOpt: Option[PositionOrder] = Option(orders.peek())
 

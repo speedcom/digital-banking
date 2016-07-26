@@ -28,21 +28,14 @@ class MutableOrderBook(product: String) {
   }
 
   def handleCancellationOrder(co: CancellationOrder): Unit = {
-    buyOrders.removeIf(idMatches(co))
-    sellOrders.removeIf(idMatches(co))
+    val idAndBrokerSame = (po: PositionOrder) => po.getId == co.getCancelledOrderId && po.getBroker == co.getBroker
+    buyOrders.removeIf(idAndBrokerSame)
+    sellOrders.removeIf(idAndBrokerSame)
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
     modifyOrder(buyOrders, mo)
     modifyOrder(sellOrders, mo)
-  }
-
-  private[this] def idMatches(co: CancellationOrder) = new Predicate[PositionOrder] {
-    def test(order: PositionOrder) = order.getId == co.getCancelledOrderId && order.getBroker == co.getBroker
-  }
-
-  private[this] def idMatches(mo: ModificationOrder) = new Predicate[PositionOrder] {
-    def test(order: PositionOrder) = order.getId == mo.getModifiedOrderId
   }
 
   private[this] def modifyOrder(order: ModificationOrder, old: PositionOrder) = {
@@ -59,13 +52,13 @@ class MutableOrderBook(product: String) {
       .build()
   }
 
-  private[this] def modifyOrder(orders: PositionOrderCollection, m: ModificationOrder): Unit = {
+  private[this] def modifyOrder(orders: PositionOrderCollection, mo: ModificationOrder): Unit = {
     for {
-      obv <- orders.findBy(m.getModifiedOrderId, m.getBroker)
-      modifiedOrder = modifyOrder(m, obv)
-      if orders.removeIf(idMatches(m))
+      obv <- orders.findBy(mo.getModifiedOrderId, mo.getBroker)
+      updatedOrder = modifyOrder(mo, obv)
+      if orders.removeIf(_.getId == mo.getModifiedOrderId)
     } yield {
-      orders.add(modifiedOrder)
+      orders.add(updatedOrder)
       matchOrders()
     }
   }
