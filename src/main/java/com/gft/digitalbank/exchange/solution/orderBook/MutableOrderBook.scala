@@ -13,7 +13,7 @@ class MutableOrderBook(product: String) {
   private val sellOrders = new SellOrders
   private val transactor = new OrderBookTransactor(product)
 
-  def getTransactions: JHashSet[Transaction] = transactor.getTransactions
+  def getTransactions: Transactions = transactor.getTransactions
 
   def getOrderBook: OrderBook = new OrderBookPreparator(product).prepare(buyOrders, sellOrders)
 

@@ -10,7 +10,7 @@ final class OrderBookTransactor(product: String) {
 
   private val transactions = Sets.newHashSet[Transaction]()
 
-  def getTransactions: JHashSet[Transaction] = transactions
+  def getTransactions: Transactions = Transactions(transactions)
 
   def add(buy: PositionOrder, sell: PositionOrder, amountLimit: Int, priceLimit: Int): Unit = {
     val t = buildTransaction(buy, sell, amountLimit, priceLimit)
@@ -30,3 +30,5 @@ final class OrderBookTransactor(product: String) {
       .build()
   }
 }
+
+case class Transactions(transactions: JHashSet[Transaction]) extends AnyVal
