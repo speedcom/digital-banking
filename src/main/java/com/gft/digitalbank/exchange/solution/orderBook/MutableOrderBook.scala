@@ -32,33 +32,19 @@ class MutableOrderBook(product: String) {
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
+    def modifyOrder(orders: PositionOrderCollection, mo: ModificationOrder): Unit = {
+      for {
+        order <- orders.findBy(mo.getModifiedOrderId, mo.getBroker)
+        if orders.removeIf(_.getId == mo.getModifiedOrderId)
+      } yield {
+        val updatedOrder = order.updateVia(mo)
+        orders.add(updatedOrder)
+        runOrderBook()
+      }
+    }
+
     modifyOrder(buyOrders, mo)
     modifyOrder(sellOrders, mo)
-  }
-
-  private[this] def modifyOrder(order: ModificationOrder, old: PositionOrder) = {
-    PositionOrder.builder()
-      .details(new OrderDetails(
-        order.getDetails.getAmount,
-        order.getDetails.getPrice))
-      .timestamp(order.getTimestamp)
-      .product(old.getProduct)
-      .broker(order.getBroker)
-      .client(old.getClient)
-      .side(old.getSide)
-      .id(old.getId)
-      .build()
-  }
-
-  private[this] def modifyOrder(orders: PositionOrderCollection, mo: ModificationOrder): Unit = {
-    for {
-      obv <- orders.findBy(mo.getModifiedOrderId, mo.getBroker)
-      updatedOrder = modifyOrder(mo, obv)
-      if orders.removeIf(_.getId == mo.getModifiedOrderId)
-    } yield {
-      orders.add(updatedOrder)
-      runOrderBook()
-    }
   }
 
   private[this] def runOrderBook(): Unit = {
@@ -71,20 +57,20 @@ class MutableOrderBook(product: String) {
       val hasBuyEnoughAmount  = matched.bestBuyOffer.getDetails.getAmount  > matched.amountLimit.amount
       val hasSellEnoughAmount = matched.bestSellOffer.getDetails.getAmount > matched.amountLimit.amount
 
-      def addBuyOrderWithRestAmount  = buyOrders.add(matched.bestBuyOffer.minusAmount(matched.amountLimit))
-      def addSellOrderWithRestAmount = sellOrders.add(matched.bestSellOffer.minusAmount(matched.amountLimit))
+      def addBuyOrderWithRestAmount()  = buyOrders.add(matched.bestBuyOffer.minusAmount(matched.amountLimit))
+      def addSellOrderWithRestAmount() = sellOrders.add(matched.bestSellOffer.minusAmount(matched.amountLimit))
 
       if(hasBuyEnoughAmount && hasSellEnoughAmount) {
-        addBuyOrderWithRestAmount
-        addSellOrderWithRestAmount
+        addBuyOrderWithRestAmount()
+        addSellOrderWithRestAmount()
         runOrderBook()
       }
       else if(hasBuyEnoughAmount) {
-        addBuyOrderWithRestAmount
+        addBuyOrderWithRestAmount()
         runOrderBook()
       }
       else if(hasSellEnoughAmount) {
-        addSellOrderWithRestAmount
+        addSellOrderWithRestAmount()
         runOrderBook()
       }
     }
