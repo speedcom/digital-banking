@@ -19,12 +19,12 @@ class MutableOrderBook(product: String) {
 
   def handleBuyOrder(po: PositionOrder): Unit = {
     buyOrders.add(po)
-    matchTransactions()
+    matchOrders()
   }
 
   def handleSellOrder(po: PositionOrder): Unit = {
     sellOrders.add(po)
-    matchTransactions()
+    matchOrders()
   }
 
   def handleCancellationOrder(co: CancellationOrder): Unit = {
@@ -66,11 +66,11 @@ class MutableOrderBook(product: String) {
       if orders.removeIf(idMatches(m))
     } yield {
       orders.add(modifiedOrder)
-      matchTransactions()
+      matchOrders()
     }
   }
 
-  private[this] def matchTransactions(): Unit = {
+  private[this] def matchOrders(): Unit = {
     for {
       b <- buyOrders.peekOpt
       s <- sellOrders.peekOpt
@@ -86,13 +86,13 @@ class MutableOrderBook(product: String) {
         case (true, true) =>
           buyOrders  add b.minusAmount(amountLimit)
           sellOrders add s.minusAmount(amountLimit)
-          matchTransactions()
+          matchOrders()
         case (true, false) =>
           buyOrders  add b.minusAmount(amountLimit)
-          matchTransactions()
+          matchOrders()
         case (false, true) =>
           sellOrders add s.minusAmount(amountLimit)
-          matchTransactions()
+          matchOrders()
         case _ =>
       }
     }
