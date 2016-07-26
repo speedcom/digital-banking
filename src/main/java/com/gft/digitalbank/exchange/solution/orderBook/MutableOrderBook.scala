@@ -9,11 +9,12 @@ class MutableOrderBook(product: String) {
   private val buyOrders  = new BuyOrders
   private val sellOrders = new SellOrders
   private val transactor = new OrderBookTransactor(product)
+  private val summary    = new OrderBookSummary(product)
   private val matcher    = new OrdersMatcher(buyOrders, sellOrders)
 
   def getTransactions: Transactions = transactor.getTransactions
 
-  def getOrderBook: OrderBook = new OrderBookPreparator(product).prepare(buyOrders, sellOrders)
+  def getOrderBook: OrderBook = summary.prepare(buyOrders, sellOrders)
 
   def handleBuyOrder(po: PositionOrder): Unit = {
     buyOrders.add(po)

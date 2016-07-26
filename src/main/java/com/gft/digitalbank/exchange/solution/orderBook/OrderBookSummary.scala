@@ -5,7 +5,7 @@ import java.util.{ArrayList => JArrayList}
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderEntry}
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
 
-private[orderBook] class OrderBookPreparator(product: String) {
+private[orderBook] class OrderBookSummary(product: String) {
 
   def prepare(buyOrders: BuyOrders, sellOrders: SellOrders): OrderBook = {
     OrderBook.builder()
