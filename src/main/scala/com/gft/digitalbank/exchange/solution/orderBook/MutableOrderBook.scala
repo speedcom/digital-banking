@@ -16,15 +16,9 @@ class MutableOrderBook(product: String) {
 
   def getOrderBook: OrderBook = summary.prepare(buyOrders, sellOrders)
 
-  def handleBuyOrder(po: PositionOrder): Unit = {
-    buyOrders.add(po)
-    runOrderBook()
-  }
+  def handleBuyOrder(po: PositionOrder): Unit = runOrderBookAfter { buyOrders.add(po) }
 
-  def handleSellOrder(po: PositionOrder): Unit = {
-    sellOrders.add(po)
-    runOrderBook()
-  }
+  def handleSellOrder(po: PositionOrder): Unit = runOrderBookAfter { sellOrders.add(po) }
 
   def handleCancellationOrder(co: CancellationOrder): Unit = {
     val idAndBrokerSame = (po: PositionOrder) => po.getId == co.getCancelledOrderId && po.getBroker == co.getBroker
@@ -38,9 +32,7 @@ class MutableOrderBook(product: String) {
         order <- orders.findBy(mo.getModifiedOrderId, mo.getBroker)
         if orders.removeIf(_.getId == mo.getModifiedOrderId)
       } yield {
-        val updatedOrder = order.updateVia(mo)
-        orders.add(updatedOrder)
-        runOrderBook()
+        runOrderBookAfter { orders.add(order.updateVia(mo)) }
       }
     }
 
@@ -61,19 +53,23 @@ class MutableOrderBook(product: String) {
       def addBuyOrderWithRestAmount()  = buyOrders.add(matched.bestBuyOffer.minusAmount(matched.amountLimit))
       def addSellOrderWithRestAmount() = sellOrders.add(matched.bestSellOffer.minusAmount(matched.amountLimit))
 
-      if(hasBuyEnoughAmount && hasSellEnoughAmount) {
-        addBuyOrderWithRestAmount()
-        addSellOrderWithRestAmount()
-        runOrderBook()
-      }
-      else if(hasBuyEnoughAmount) {
-        addBuyOrderWithRestAmount()
-        runOrderBook()
-      }
-      else if(hasSellEnoughAmount) {
-        addSellOrderWithRestAmount()
-        runOrderBook()
+      runOrderBookAfter {
+        if(hasBuyEnoughAmount && hasSellEnoughAmount) {
+          addBuyOrderWithRestAmount()
+          addSellOrderWithRestAmount()
+        }
+        else if(hasBuyEnoughAmount) {
+          addBuyOrderWithRestAmount()
+        }
+        else if(hasSellEnoughAmount) {
+          addSellOrderWithRestAmount()
+        }
       }
     }
+  }
+
+  private def runOrderBookAfter(computation: => Unit): Unit = {
+    computation
+    runOrderBook()
   }
 }
