@@ -51,7 +51,7 @@ class MutableOrderBook(product: String) {
   private[this] def runOrderBook(): Unit = {
     for {
       matched <- matcher.matchOrders()
-      if transactor.add(matched.bestBuyOffer, matched.bestSellOffer, matched.amountLimit, matched.priceLimit)
+      if transactor.addTransaction(matched.bestBuyOffer, matched.bestSellOffer, matched.amountLimit, matched.priceLimit)
       _ <- Option(buyOrders.poll())
       _ <- Option(sellOrders.poll())
     } yield {
