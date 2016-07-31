@@ -1,7 +1,7 @@
 package com.gft.digitalbank.exchange.solution.orderBook
 
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder}
-import com.gft.digitalbank.exchange.model.{OrderBook, OrderDetails}
+import com.gft.digitalbank.exchange.model.OrderBook
 import PositionOrderOps._
 
 class MutableOrderBook(product: String) {
