@@ -25,7 +25,7 @@ object Unmarshaller {
     }
   }
 
-  private implicit class JsonOps(json: JsObject) {
+  private[this] implicit class JsonOps(json: JsObject) {
 
     final def toPositionOrder: PositionOrderCommand = json.getFields("messageType", "side", "id", "timestamp", "broker", "client", "product", "details") match {
       case Seq(JsString(_), JsString(side), JsNumber(id), JsNumber(timestamp), JsString(broker), JsString(client), JsString(product), JsObject(details)) =>

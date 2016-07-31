@@ -8,7 +8,7 @@ import com.google.common.collect.Sets
 
 private[orderBook] final class OrderBookTransactor(product: String) {
 
-  private val transactions = Sets.newHashSet[Transaction]()
+  private[this] val transactions = Sets.newHashSet[Transaction]()
 
   def getTransactions: Transactions = Transactions(transactions)
 

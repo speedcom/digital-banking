@@ -7,7 +7,7 @@ import com.gft.digitalbank.exchange.solution.orderBook.MutableOrderBook
 class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor {
   import OrderBookActor._
 
-  private val orderBook = new MutableOrderBook(product)
+  private[this] val orderBook = new MutableOrderBook(product)
 
   override def receive: Receive = {
     case BuyOrder(b)     => orderBook.handleBuyOrder(b)

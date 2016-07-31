@@ -9,7 +9,7 @@ import com.gft.digitalbank.exchange.model.orders.PositionOrder
 
 private[orderBook] sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
 
-  private val orders = new JPriorityQueue[PositionOrder](comparator)
+  private[this] val orders = new JPriorityQueue[PositionOrder](comparator)
 
   def add(po: PositionOrder): Unit = orders.add(po)
 
@@ -33,7 +33,7 @@ private[orderBook] sealed abstract class PositionOrderCollection(comparator: Com
 
 final class BuyOrders extends PositionOrderCollection(new Comparator[PositionOrder] {
 
-  private val buyOrdering = Ordering.by[PositionOrder, (Int, Long)] { buy =>
+  private[this] val buyOrdering = Ordering.by[PositionOrder, (Int, Long)] { buy =>
     (buy.getDetails.getPrice * -1, buy.getTimestamp)
   }
 
@@ -42,7 +42,7 @@ final class BuyOrders extends PositionOrderCollection(new Comparator[PositionOrd
 
 final class SellOrders extends PositionOrderCollection(new Comparator[PositionOrder] {
 
-  private val sellOrdering = Ordering.by[PositionOrder, (Int, Long)] { sell =>
+  private[this] val sellOrdering = Ordering.by[PositionOrder, (Int, Long)] { sell =>
     (sell.getDetails.getPrice, sell.getTimestamp)
   }
 

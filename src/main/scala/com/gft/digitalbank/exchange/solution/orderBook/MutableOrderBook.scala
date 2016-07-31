@@ -6,11 +6,11 @@ import PositionOrderOps._
 
 class MutableOrderBook(product: String) {
 
-  private val buyOrders  = new BuyOrders
-  private val sellOrders = new SellOrders
-  private val transactor = new OrderBookTransactor(product)
-  private val summary    = new OrderBookSummary(product)
-  private val matcher    = new OrdersMatcher(buyOrders, sellOrders)
+  private[this] val buyOrders  = new BuyOrders
+  private[this] val sellOrders = new SellOrders
+  private[this] val transactor = new OrderBookTransactor(product)
+  private[this] val summary    = new OrderBookSummary(product)
+  private[this] val matcher    = new OrdersMatcher(buyOrders, sellOrders)
 
   def getTransactions: Transactions = transactor.getTransactions
 
@@ -68,7 +68,7 @@ class MutableOrderBook(product: String) {
     }
   }
 
-  private def runOrderBookAfter(computation: => Unit): Unit = {
+  private[this] def runOrderBookAfter(computation: => Unit): Unit = {
     computation
     runOrderBook()
   }
