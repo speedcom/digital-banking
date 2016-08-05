@@ -20,5 +20,14 @@ class MutableOrderBookTest extends FlatSpec with Matchers {
     finalOrderBook.getSellEntries.size    shouldBe 0
   }
 
+  it should "set correct product name for order-book" in {
+    // given
+    val googleOrderBook = new MutableOrderBook("GOOG")
 
+    // when
+    val finalOrderBook = googleOrderBook.getOrderBook
+
+    // then
+    finalOrderBook.getProduct shouldBe "GOOG"
+  }
 }
