@@ -8,7 +8,7 @@ class PositionOrderCollectionTest extends FlatSpec with Matchers {
 
   behavior of "Position Order Collection"
 
-  it should "remove Order when its polled" in {
+  it should "remove polled Order" in {
     val collection = new FakePositionOrderCollection()
     val order = randomPositionOrder
     collection.add(order)
@@ -26,6 +26,20 @@ class PositionOrderCollectionTest extends FlatSpec with Matchers {
     collection.nonEmpty shouldBe true
     collection.peekOpt  should not be empty
     collection.nonEmpty shouldBe true
+  }
+
+  it should "find order by \"modifiedOrderId\" and \"broker\"" in {
+    val collection = new FakePositionOrderCollection()
+    val order = randomPositionOrder
+    collection.add(order)
+
+    val found = collection.findBy(modifiedOrderId = order.getId, broker = order.getBroker)
+
+    found shouldBe Some(order)
+  }
+
+  it should "remove if" in {
+    pending
   }
 
   private final class FakePositionOrderCollection extends PositionOrderCollection(null)
