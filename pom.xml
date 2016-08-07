@@ -26,6 +26,8 @@
             <version>2.4.8</version>
         </dependency>
 
+        <!-- you can add new Maven dependencies of your choice -->
+
         <dependency>
             <groupId>io.spray</groupId>
             <artifactId>spray-json_2.11</artifactId>
@@ -38,7 +40,18 @@
             <version>1.2.0</version>
         </dependency>
 
-        <!-- you can add new Maven dependencies of your choice -->
+        <dependency>
+            <groupId>org.scalactic</groupId>
+            <artifactId>scalactic_2.11</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.11</artifactId>
+            <version>3.0.0</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

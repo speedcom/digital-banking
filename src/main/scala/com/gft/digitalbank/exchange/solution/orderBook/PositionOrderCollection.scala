@@ -7,7 +7,7 @@ import scala.collection.JavaConverters._
 
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
 
-private[orderBook] sealed abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
+private[orderBook] abstract class PositionOrderCollection(comparator: Comparator[PositionOrder]) {
 
   private[this] val orders = new JPriorityQueue[PositionOrder](comparator)
 
