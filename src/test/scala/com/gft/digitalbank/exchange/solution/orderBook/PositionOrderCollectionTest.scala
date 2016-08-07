@@ -18,7 +18,7 @@ class PositionOrderCollectionTest extends FlatSpec with Matchers {
     collection.isEmpty  shouldBe true
   }
 
-  it should "NOT remove corresponding Order when asking for peek" in {
+  it should "NOT remove peeked Order" in {
     val collection = new FakePositionOrderCollection()
     val order = randomPositionOrder
     collection.add(order)
@@ -38,8 +38,14 @@ class PositionOrderCollectionTest extends FlatSpec with Matchers {
     found shouldBe Some(order)
   }
 
-  it should "remove if" in {
-    pending
+  it should "remove order by predicate" in {
+    val collection = new FakePositionOrderCollection()
+    val order = randomPositionOrder
+    collection.add(order)
+
+    val removed = collection.removeIf(_.getId == order.getId)
+
+    removed shouldBe true
   }
 
   private final class FakePositionOrderCollection extends PositionOrderCollection(null)
