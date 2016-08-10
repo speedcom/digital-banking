@@ -1,8 +1,8 @@
 package com.gft.digitalbank.exchange.solution
 
 import com.gft.digitalbank.exchange.model.OrderDetails
-import com.gft.digitalbank.exchange.model.orders.{ PositionOrder, Side }
-import com.gft.digitalbank.exchange.solution.OrderCommand.PositionOrderCommand
+import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder, Side }
+import com.gft.digitalbank.exchange.solution.OrderCommand.{ CancellationOrderCommand, PositionOrderCommand }
 import org.scalatest._
 import scala.util.Success
 
@@ -48,5 +48,27 @@ class UnmarshallerTest extends FlatSpec with Matchers {
       .build()
     ))
 
+  }
+
+  it should "unmarshall messages of type CANCEL" in {
+
+    val cancelledOrderId = 2
+
+    val message = s"""{
+      "messageType":"CANCEL",
+      "id":$id,
+      "timestamp":$timestamp,
+      "broker":"$broker",
+      "cancelledOrderId":$cancelledOrderId
+    }"""
+
+    Unmarshaller(message) shouldBe Success(CancellationOrderCommand(
+      CancellationOrder.builder()
+          .timestamp(timestamp)
+          .broker(broker)
+          .cancelledOrderId(cancelledOrderId)
+          .id(id)
+          .build()
+    ))
   }
 }
