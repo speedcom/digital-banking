@@ -1,8 +1,9 @@
 package com.gft.digitalbank.exchange.solution
 
 import com.gft.digitalbank.exchange.model.OrderDetails
+import com.gft.digitalbank.exchange.model.orders.{ ModificationOrder, ShutdownNotification }
 import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder, Side }
-import com.gft.digitalbank.exchange.solution.OrderCommand.{ CancellationOrderCommand, PositionOrderCommand }
+import com.gft.digitalbank.exchange.solution.OrderCommand.{ CancellationOrderCommand, ModificationOrderCommand, PositionOrderCommand, ShutdownOrderCommand }
 import org.scalatest._
 import scala.util.Success
 
@@ -68,6 +69,51 @@ class UnmarshallerTest extends FlatSpec with Matchers {
           .broker(broker)
           .cancelledOrderId(cancelledOrderId)
           .id(id)
+          .build()
+    ))
+  }
+
+  it should "unmarshall messages of type SHUTDOWN" in {
+
+    val message = s"""{
+      "messageType":"SHUTDOWN_NOTIFICATION",
+      "id":$id,
+      "timestamp":$timestamp,
+      "broker":"$broker"
+    }"""
+
+    Unmarshaller(message) shouldBe Success(ShutdownOrderCommand(
+      ShutdownNotification.builder()
+          .timestamp(timestamp)
+          .broker(broker)
+          .id(id)
+          .build()
+    ))
+  }
+
+  it should "unmarshall messages of type MODIFICATION" in {
+
+    val modifiedOrderId = 15
+
+    val message = s"""{
+      "messageType":"MODIFICATION",
+      "id":$id,
+      "timestamp":$timestamp,
+      "broker":"$broker",
+      "modifiedOrderId":$modifiedOrderId,
+      "details":{
+        "price":$price,
+        "amount":$amount
+      }
+    }"""
+
+    Unmarshaller(message) shouldBe Success(ModificationOrderCommand(
+      ModificationOrder.builder()
+          .timestamp(timestamp)
+          .broker(broker)
+          .id(id)
+          .modifiedOrderId(modifiedOrderId)
+          .details(details)
           .build()
     ))
   }
