@@ -5,7 +5,7 @@ import com.gft.digitalbank.exchange.model.orders.{ ModificationOrder, ShutdownNo
 import com.gft.digitalbank.exchange.model.orders.{ CancellationOrder, PositionOrder, Side }
 import com.gft.digitalbank.exchange.solution.OrderCommand.{ CancellationOrderCommand, ModificationOrderCommand, PositionOrderCommand, ShutdownOrderCommand }
 import org.scalatest._
-import scala.util.Success
+import scala.util.{ Failure, Success }
 
 class UnmarshallerTest extends FlatSpec with Matchers {
 
@@ -116,5 +116,28 @@ class UnmarshallerTest extends FlatSpec with Matchers {
           .details(details)
           .build()
     ))
+  }
+
+  it should "reject messages without type" in {
+    val message = s"""{
+      "id":$id
+    }"""
+
+    val res = Unmarshaller(message)
+    res.isFailure shouldBe true
+    res.failed.get shouldBe an[IllegalArgumentException]
+    res.failed.get.getMessage shouldBe s"Message ${message} doesn't contain field messageType"
+  }
+
+  it should "reject messages with unknown type" in {
+    val message = s"""{
+      "id":$id,
+      "messageType":"unknown"
+    }"""
+
+    val res = Unmarshaller(message)
+    res.isFailure shouldBe true
+    res.failed.get shouldBe an[IllegalArgumentException]
+    res.failed.get.getMessage shouldBe s"Message ${message} has unknown type"
   }
 }

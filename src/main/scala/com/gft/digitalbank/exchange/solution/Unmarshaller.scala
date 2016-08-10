@@ -18,6 +18,7 @@ object Unmarshaller {
       case Some(JsString("MODIFICATION"))          => json.toModificationOrder
       case Some(JsString("CANCEL"))                => json.toCancellationOrder
       case Some(JsString("SHUTDOWN_NOTIFICATION")) => json.toShutdownNotification
+      case Some(_)                                 => throw new IllegalArgumentException(s"Message ${txt} has unknown type")
       case other                                   => throw new IllegalArgumentException(s"Message ${txt} doesn't contain field messageType")
     }
   }
