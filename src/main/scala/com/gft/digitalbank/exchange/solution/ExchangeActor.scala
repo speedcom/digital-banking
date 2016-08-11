@@ -24,9 +24,9 @@ class ExchangeActor extends Actor with ActorLogging {
 
   private[this] def active(data: Data): Receive = {
     case ProcessPositionOrder(po) if po.getSide == Side.BUY =>
-      bookActorRef(data, po.getProduct) ! OrderBookActor.BuyOrder(po)
+      orderBookActorRef(data, po.getProduct) ! OrderBookActor.BuyOrder(po)
     case ProcessPositionOrder(po) if po.getSide == Side.SELL =>
-      bookActorRef(data, po.getProduct) ! OrderBookActor.SellOrder(po)
+      orderBookActorRef(data, po.getProduct) ! OrderBookActor.SellOrder(po)
     case ProcessModificationOrder(mo) =>
       data.orderBookActors.values.foreach(_ ! OrderBookActor.ModifyOrder(mo))
     case ProcessCancellationOrder(co) =>
@@ -44,25 +44,20 @@ class ExchangeActor extends Actor with ActorLogging {
       }
   }
 
-  private[this] def bookActorRef(data: Data, product: String): ActorRef = {
-    lazy val actor = context.actorOf(
-      props = Props(classOf[OrderBookActor], self, product),
-      name = product
+  private[this] def orderBookActorRef(data: Data, product: String): ActorRef = {
+    data.orderBookActors.getOrElseUpdate(
+      key = product,
+      op  = context.actorOf(Props(classOf[OrderBookActor], self, product), product)
     )
-    data.orderBookActors.getOrElseUpdate(product, actor)
   }
 
   private[this] def gatherResults(data: Data): Unit = {
-    data.orderBookActors.values.foreach { _ ! OrderBookActor.GetResults }
+    data.orderBookActors.values.foreach(_ ! OrderBookActor.GetResults)
   }
 
   private[this] def sendSummaryToListener(data: Data) = {
-    for {
-      listener <- data.processingListener
-      solution <- Option(new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions))
-    } yield {
-      listener.processingDone(solution)
-    }
+    lazy val solution = new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions)
+    data.processingListener.foreach(_.processingDone(solution))
   }
 }
 
