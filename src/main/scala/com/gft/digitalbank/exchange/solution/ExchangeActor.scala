@@ -17,14 +17,9 @@ class ExchangeActor extends Actor with ActorLogging {
   override def receive: Receive = idle(Data())
 
   private def idle(data: Data): Receive = {
-    case Register(listener)  =>
-      val updatedData = data.copy(processingListener = Some(listener))
-      context.become(idle(updatedData))
-    case Brokers(newBrokers) =>
-      val updatedData = data.copy(activeBrokers = mutable.Set(newBrokers.toArray:_*))
-      context.become(idle(updatedData))
-    case Start =>
-      context.become(active(data))
+    case Register(listener)  => context.become(idle(data.copy(processingListener = Some(listener))))
+    case Brokers(newBrokers) => context.become(idle(data.copy(activeBrokers = mutable.Set(newBrokers.toArray:_*))))
+    case Start               => context.become(active(data))
   }
 
   private def active(data: Data): Receive = {
@@ -33,9 +28,9 @@ class ExchangeActor extends Actor with ActorLogging {
     case ProcessPositionOrder(po) if po.getSide == Side.SELL =>
       bookActorRef(data, po.getProduct) ! OrderBookActor.SellOrder(po)
     case ProcessModificationOrder(mo) =>
-      data.orderBookActors.values.foreach (_ ! OrderBookActor.ModifyOrder(mo))
+      data.orderBookActors.values.foreach(_ ! OrderBookActor.ModifyOrder(mo))
     case ProcessCancellationOrder(co) =>
-      data.orderBookActors.values.foreach (_ ! OrderBookActor.CancelOrder(co))
+      data.orderBookActors.values.foreach(_ ! OrderBookActor.CancelOrder(co))
     case BrokerStopped(broker) =>
       data.activeBrokers -= broker
       if (data.activeBrokers.isEmpty) gatherResults(data)
