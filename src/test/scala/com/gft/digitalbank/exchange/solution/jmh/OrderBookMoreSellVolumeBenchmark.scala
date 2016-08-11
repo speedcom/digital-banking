@@ -3,47 +3,47 @@ package com.gft.digitalbank.exchange.solution.jmh
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.gft.digitalbank.exchange.model.OrderDetails
-import com.gft.digitalbank.exchange.model.orders.{ PositionOrder, Side }
+import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
 import com.gft.digitalbank.exchange.solution.orderBook.MutableOrderBook
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.Setup
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.annotations._
 
 @State(Scope.Thread)
-class OrderBookBenchmark {
+class OrderBookMoreSellVolumeBenchmark {
 
   var book: MutableOrderBook = _
 
   var buyOrders: Array[PositionOrder]  = _
   var sellOrders: Array[PositionOrder] = _
 
-  private def buildPositionOrder(side: Side, id: Int) = {
+  @inline
+  final private[this] def buildPositionOrder(side: Side, id: Int, amount:Int = 100, price:Int = 10) = {
     PositionOrder
       .builder()
       .id(id)
       .timestamp(1)
-      .broker("broker-2")
-      .client("client-1")
+      .broker("broker")
+      .client("client-"+ id)
       .product("SCALA")
       .side(Side.BUY)
-      .details(OrderDetails.builder().amount(100).price(10).build())
+      .details(OrderDetails.builder().amount(amount).price(price).build())
       .build()
   }
 
-  private def buildBuyPositionOrder(id: Int)  = buildPositionOrder(Side.BUY, id)
-  private def buildSellPositionOrder(id: Int) = buildPositionOrder(Side.SELL, id)
+  @inline
+  final private[this] def buildBuyPositionOrder(id: Int)  = buildPositionOrder(Side.BUY, id)
+
+  @inline
+  final private[this] def buildSellPositionOrder(id: Int) = buildPositionOrder(Side.SELL, id)
 
   @Setup
   def prepare: Unit = {
     val id = new AtomicInteger(0)
     book = new MutableOrderBook("SCALA")
-    buyOrders = Array.fill(100) {
-      buildBuyPositionOrder(id.incrementAndGet())
-    }
     sellOrders = Array.fill(100) {
       buildSellPositionOrder(id.incrementAndGet())
+    }
+    buyOrders = sellOrders.map{ sell =>
+      buildPositionOrder(Side.BUY, id.incrementAndGet(), sell.getDetails.getAmount-1, sell.getDetails.getPrice)
     }
 
   }
