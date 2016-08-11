@@ -83,5 +83,4 @@ object Unmarshaller {
     }
     orderCmdOpt getOrElse deserializationError("Json deserialization exception - \"amount\" or \"price\" expected")
   }
-
 }
