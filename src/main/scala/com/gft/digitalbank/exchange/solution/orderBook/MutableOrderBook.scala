@@ -40,7 +40,8 @@ class MutableOrderBook(product: String) {
     modifyOrder(sellOrders, mo)
   }
 
-  private[this] def runOrderBook(): Unit = {
+  @inline
+  final private[this] def runOrderBook(): Unit = {
     for {
       matched <- matcher.matchOrders()
       if transactor.addTransaction(matched.bestBuyOffer, matched.bestSellOffer, matched.amountLimit, matched.priceLimit)
@@ -68,7 +69,8 @@ class MutableOrderBook(product: String) {
     }
   }
 
-  private[this] def runOrderBookAfter(computation: => Unit): Unit = {
+  @inline
+  final private[this] def runOrderBookAfter(computation: => Unit): Unit = {
     computation
     runOrderBook()
   }
