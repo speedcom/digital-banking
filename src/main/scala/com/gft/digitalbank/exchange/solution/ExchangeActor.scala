@@ -16,13 +16,13 @@ class ExchangeActor extends Actor with ActorLogging {
 
   override def receive: Receive = idle(Data())
 
-  private def idle(data: Data): Receive = {
+  private[this] def idle(data: Data): Receive = {
     case Register(listener)  => context.become(idle(data.copy(processingListener = Some(listener))))
     case Brokers(newBrokers) => context.become(idle(data.copy(activeBrokers = mutable.Set(newBrokers.toArray:_*))))
     case Start               => context.become(active(data))
   }
 
-  private def active(data: Data): Receive = {
+  private[this] def active(data: Data): Receive = {
     case ProcessPositionOrder(po) if po.getSide == Side.BUY =>
       bookActorRef(data, po.getProduct) ! OrderBookActor.BuyOrder(po)
     case ProcessPositionOrder(po) if po.getSide == Side.SELL =>
@@ -44,24 +44,6 @@ class ExchangeActor extends Actor with ActorLogging {
       }
   }
 
-  private[this] def sendSummaryToListener(data: Data) = {
-
-    def prepareSolutionResult = {
-      def isEmpty(ob: OrderBook): Boolean = ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty
-      SolutionResult.builder()
-        .orderBooks(data.createdOrderBooks.filterNot(isEmpty).asJavaCollection)
-        .transactions(data.createdTransactions)
-        .build()
-    }
-
-    for {
-      listener <- data.processingListener
-      solution <- Option(prepareSolutionResult)
-    } yield {
-      listener.processingDone(solution)
-    }
-  }
-
   private[this] def bookActorRef(data: Data, product: String): ActorRef = {
     lazy val actor = context.actorOf(
       props = Props(classOf[OrderBookActor], self, product),
@@ -73,6 +55,16 @@ class ExchangeActor extends Actor with ActorLogging {
   private[this] def gatherResults(data: Data): Unit = {
     data.orderBookActors.values.foreach { _ ! OrderBookActor.GetResults }
   }
+
+  private[this] def sendSummaryToListener(data: Data) = {
+    for {
+      listener <- data.processingListener
+      solution <- Option(new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions))
+    } yield {
+      listener.processingDone(solution)
+    }
+  }
+
 }
 
 object ExchangeActor {
@@ -97,4 +89,18 @@ object ExchangeActor {
   case class BrokerStopped(broker: String)                                extends ExchangeCommand
   case class RecordTransactions(transactions: util.HashSet[Transaction])  extends ExchangeCommand
   case class RecordOrderBook(orderBook: OrderBook)                        extends ExchangeCommand
+}
+
+class SolutionResultBuilder {
+
+  private def isEmpty(ob: OrderBook): Boolean = {
+    ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty
+  }
+
+  def build(orderBooks: mutable.Set[OrderBook], transactions: util.HashSet[Transaction]): SolutionResult = {
+    SolutionResult.builder()
+      .orderBooks(orderBooks.filterNot(isEmpty).asJavaCollection)
+      .transactions(transactions)
+      .build()
+  }
 }
