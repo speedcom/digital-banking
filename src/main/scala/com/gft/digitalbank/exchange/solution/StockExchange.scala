@@ -26,8 +26,9 @@ class StockExchange extends Exchange {
 
   override def setDestinations(destinations: util.List[String]): Unit = {
     val uniqueDestinations = destinations.asScala.toSet
+    val uniqueBrokers = uniqueDestinations.map(Broker)
 
-    exchangeActorRef.tell(ExchangeActor.Brokers(uniqueDestinations), ActorRef.noSender)
+    exchangeActorRef.tell(ExchangeActor.Brokers(uniqueBrokers), ActorRef.noSender)
 
     uniqueDestinations.foreach { destination =>
       val queue           = session.createQueue(destination)

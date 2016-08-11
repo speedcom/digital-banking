@@ -64,13 +64,12 @@ class ExchangeActor extends Actor with ActorLogging {
       listener.processingDone(solution)
     }
   }
-
 }
 
 object ExchangeActor {
 
   private case class Data(processingListener: Option[ProcessingListener] = None,
-                          activeBrokers: mutable.Set[String] = mutable.Set(),
+                          activeBrokers: mutable.Set[Broker] = mutable.Set(),
                           orderBookActors: mutable.Map[String, ActorRef] = mutable.Map(),
                           createdOrderBooks: mutable.Set[OrderBook] = mutable.Set(),
                           createdTransactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]())
@@ -79,14 +78,14 @@ object ExchangeActor {
 
   // Idle state
   case class Register(processingListener: ProcessingListener)             extends ExchangeCommand
-  case class Brokers(brokers: Set[String])                                extends ExchangeCommand
+  case class Brokers(brokers: Set[Broker])                                extends ExchangeCommand
   case object Start                                                       extends ExchangeCommand
 
   // Active state
   case class ProcessModificationOrder(mo: ModificationOrder)              extends ExchangeCommand
   case class ProcessPositionOrder(po: PositionOrder)                      extends ExchangeCommand
   case class ProcessCancellationOrder(co: CancellationOrder)              extends ExchangeCommand
-  case class BrokerStopped(broker: String)                                extends ExchangeCommand
+  case class BrokerStopped(broker: Broker)                                extends ExchangeCommand
   case class RecordTransactions(transactions: util.HashSet[Transaction])  extends ExchangeCommand
   case class RecordOrderBook(orderBook: OrderBook)                        extends ExchangeCommand
 }
