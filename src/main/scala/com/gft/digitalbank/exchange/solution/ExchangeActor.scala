@@ -28,30 +28,22 @@ class ExchangeActor extends Actor with ActorLogging {
   }
 
   private def active(data: Data): Receive = {
-    case ProcessPositionOrder(po) =>
-      val bookActor = bookActorRef(data, po.getProduct)
-      if(po.getSide == Side.BUY)
-        bookActor ! OrderBookActor.BuyOrder(po)
-      else
-        bookActor ! OrderBookActor.SellOrder(po)
-
+    case ProcessPositionOrder(po) if po.getSide == Side.BUY =>
+      bookActorRef(data, po.getProduct) ! OrderBookActor.BuyOrder(po)
+    case ProcessPositionOrder(po) if po.getSide == Side.SELL =>
+      bookActorRef(data, po.getProduct) ! OrderBookActor.SellOrder(po)
     case ProcessModificationOrder(mo) =>
-      data.books.values.foreach (_ ! OrderBookActor.ModifyOrder(mo))
-
+      data.orderBookActors.values.foreach (_ ! OrderBookActor.ModifyOrder(mo))
     case ProcessCancellationOrder(co) =>
-      data.books.values.foreach (_ ! OrderBookActor.CancelOrder(co))
-
+      data.orderBookActors.values.foreach (_ ! OrderBookActor.CancelOrder(co))
     case BrokerStopped(broker) =>
       data.activeBrokers -= broker
-      if (data.activeBrokers.isEmpty)
-        gatherResults(data)
-
+      if (data.activeBrokers.isEmpty) gatherResults(data)
     case RecordTransactions(ts) =>
-      data.transactions.addAll(ts)
-
+      data.createdTransactions.addAll(ts)
     case RecordOrderBook(orderBook) =>
-      data.orderBooks += orderBook
-      if (data.orderBooks.size == data.books.size) {
+      data.createdOrderBooks += orderBook
+      if (data.createdOrderBooks.size == data.orderBookActors.size) {
         context.system.terminate()
         sendSummaryToListener(data)
       }
@@ -59,24 +51,32 @@ class ExchangeActor extends Actor with ActorLogging {
 
   private[this] def sendSummaryToListener(data: Data) = {
 
-    val isEmpty: OrderBook => Boolean = { ob =>
-      ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty
+    def prepareSolutionResult = {
+      def isEmpty(ob: OrderBook): Boolean = ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty
+      SolutionResult.builder()
+        .orderBooks(data.createdOrderBooks.filterNot(isEmpty).asJavaCollection)
+        .transactions(data.createdTransactions)
+        .build()
     }
 
-    data.processingListener.foreach(_.processingDone(
-      SolutionResult.builder()
-        .orderBooks(data.orderBooks.filterNot(isEmpty).asJavaCollection)
-        .transactions(data.transactions)
-        .build()
-    ))
+    for {
+      listener <- data.processingListener
+      solution <- Option(prepareSolutionResult)
+    } yield {
+      listener.processingDone(solution)
+    }
   }
 
   private[this] def bookActorRef(data: Data, product: String): ActorRef = {
-    data.books.getOrElseUpdate(product, context.actorOf(Props(classOf[OrderBookActor], self, product), product))
+    lazy val actor = context.actorOf(
+      props = Props(classOf[OrderBookActor], self, product),
+      name = product
+    )
+    data.orderBookActors.getOrElseUpdate(product, actor)
   }
 
   private[this] def gatherResults(data: Data): Unit = {
-    data.books.values.foreach { _ ! OrderBookActor.GetTransactions }
+    data.orderBookActors.values.foreach { _ ! OrderBookActor.GetResults }
   }
 }
 
@@ -84,10 +84,9 @@ object ExchangeActor {
 
   private case class Data(processingListener: Option[ProcessingListener] = None,
                           activeBrokers: mutable.Set[String] = mutable.Set(),
-                          books: mutable.Map[String, ActorRef] = mutable.Map(),
-                          orderBooks: mutable.Set[OrderBook] = mutable.Set(),
-                          transactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]()
-                         )
+                          orderBookActors: mutable.Map[String, ActorRef] = mutable.Map(),
+                          createdOrderBooks: mutable.Set[OrderBook] = mutable.Set(),
+                          createdTransactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]())
 
   sealed trait ExchangeCommand
 
