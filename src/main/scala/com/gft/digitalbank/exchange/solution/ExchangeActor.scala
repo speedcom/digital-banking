@@ -29,7 +29,6 @@ class ExchangeActor extends Actor with ActorLogging {
 
   private def active(data: Data): Receive = {
     case ProcessPositionOrder(po) =>
-      data.activeBrokers += po.getBroker
       val bookActor = bookActorRef(data, po.getProduct)
       if(po.getSide == Side.BUY)
         bookActor ! OrderBookActor.BuyOrder(po)
@@ -37,11 +36,9 @@ class ExchangeActor extends Actor with ActorLogging {
         bookActor ! OrderBookActor.SellOrder(po)
 
     case ProcessModificationOrder(mo) =>
-      data.activeBrokers += mo.getBroker
       data.books.values.foreach (_ ! OrderBookActor.ModifyOrder(mo))
 
     case ProcessCancellationOrder(co) =>
-      data.activeBrokers += co.getBroker
       data.books.values.foreach (_ ! OrderBookActor.CancelOrder(co))
 
     case BrokerStopped(broker) =>
@@ -54,7 +51,6 @@ class ExchangeActor extends Actor with ActorLogging {
 
     case RecordOrderBook(orderBook) =>
       data.orderBooks += orderBook
-
       if (data.orderBooks.size == data.books.size) {
         context.system.terminate()
         sendSummaryToListener(data)
