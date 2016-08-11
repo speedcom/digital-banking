@@ -15,7 +15,7 @@ class ConsumerActor(messageConsumer: MessageConsumer, destination: String, excha
 
   override def receive: Receive = {
     case txt: TextMessage =>
-      Unmarshaller(txt) match {
+      Unmarshaller(txt.getText) match {
         case Success(order: PositionOrderCommand)     => exchangeActorRef ! ExchangeActor.ProcessPositionOrder(order.po)
         case Success(order: CancellationOrderCommand) => exchangeActorRef ! ExchangeActor.ProcessCancellationOrder(order.co)
         case Success(order: ModificationOrderCommand) => exchangeActorRef ! ExchangeActor.ProcessModificationOrder(order.mo)

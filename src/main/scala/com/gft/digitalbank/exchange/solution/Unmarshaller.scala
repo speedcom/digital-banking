@@ -1,27 +1,25 @@
 package com.gft.digitalbank.exchange.solution
 
-import javax.jms.TextMessage
-
 import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders._
 import com.gft.digitalbank.exchange.solution.OrderCommand.{CancellationOrderCommand, ModificationOrderCommand, PositionOrderCommand, ShutdownOrderCommand}
 
-import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.util.Try
 
 object Unmarshaller {
 
-  def apply(txt: TextMessage): Try[OrderCommand] = Try {
-    val json = txt.getText.parseJson.asJsObject
+  def apply(txt: String): Try[OrderCommand] = Try {
+    val json = txt.parseJson.asJsObject
 
     json.getFields("messageType").headOption match {
       case Some(JsString("ORDER"))                 => json.toPositionOrder
       case Some(JsString("MODIFICATION"))          => json.toModificationOrder
       case Some(JsString("CANCEL"))                => json.toCancellationOrder
       case Some(JsString("SHUTDOWN_NOTIFICATION")) => json.toShutdownNotification
-      case other                                   => throw new IllegalArgumentException(s"Message ${txt.getText} doesn't contain field messageType")
+      case Some(_)                                 => throw new IllegalArgumentException(s"Message $txt has unknown type")
+      case other                                   => throw new IllegalArgumentException(s"Message $txt doesn't contain field messageType")
     }
   }
 
