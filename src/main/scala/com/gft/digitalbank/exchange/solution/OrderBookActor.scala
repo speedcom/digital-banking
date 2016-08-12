@@ -14,7 +14,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
     case SellOrder(s)    => orderBook.handleSellOrder(s)
     case CancelOrder(c)  => orderBook.handleCancellationOrder(c)
     case ModifyOrder(m)  => orderBook.handleModificationOrder(m)
-    case GetTransactions =>
+    case GetResults =>
       exchangeActorRef ! ExchangeActor.RecordTransactions(orderBook.getTransactions.transactions)
       exchangeActorRef ! ExchangeActor.RecordOrderBook(orderBook.getOrderBook)
       context.stop(self)
@@ -23,7 +23,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: String) extends Actor 
 
 object OrderBookActor {
   sealed trait BookCommand
-  case object GetTransactions                   extends BookCommand
+  case object GetResults                        extends BookCommand
   case class BuyOrder(po: PositionOrder)        extends BookCommand
   case class SellOrder(po: PositionOrder)       extends BookCommand
   case class CancelOrder(co: CancellationOrder) extends BookCommand

@@ -9,94 +9,93 @@ import com.gft.digitalbank.exchange.model.{OrderBook, SolutionResult, Transactio
 import com.google.common.collect.Sets
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class ExchangeActor extends Actor with ActorLogging {
   import ExchangeActor._
 
-  var processingListener: Option[ProcessingListener] = None
-  val activeBrokers = collection.mutable.Set.empty[String]
-  val books         = collection.mutable.Map.empty[String, ActorRef]
+  override def receive: Receive = idle(Data())
 
-  val orderBooks    = collection.mutable.Set.empty[OrderBook]
-  val transactions  = Sets.newHashSet[Transaction]()
-
-  override def receive: Receive = {
-    case cmd: ExchangeCommand => handleExchangeCommand(cmd)
-    case x                    => throw new IllegalArgumentException(s"Received wrong command: $x")
+  private[this] def idle(data: Data): Receive = {
+    case Register(listener)  => context.become(idle(data.copy(processingListener = Some(listener))))
+    case Brokers(newBrokers) => context.become(idle(data.copy(activeBrokers = mutable.Set(newBrokers.toArray:_*))))
+    case Start               => context.become(active(data))
   }
 
-  def handleExchangeCommand(exchangeCommand: ExchangeCommand): Unit = {
-    println(s"Handling $exchangeCommand")
-    exchangeCommand match {
-      case Register(listener) =>
-        println(s"Registering listener $listener")
-        processingListener = Some(listener)
-      case Brokers(newBrokers) =>
-        activeBrokers ++= newBrokers
-        println(s"Active brokers: ${ activeBrokers }")
-      case BrokerStopped(broker) => {
-          activeBrokers -= broker
-          println(s"Active brokers: ${ activeBrokers }")
-          if (activeBrokers.isEmpty) {
-            gatherResults()
-          }
-        }
-      case RecordTransactions(ts) =>
-        transactions.addAll(ts)
-      case RecordOrderBook(orderBook) =>
-        orderBooks += orderBook
-
-        if (orderBooks.size == books.size) {
-          context.system.terminate()
-
-          processingListener.foreach(_.processingDone(
-            SolutionResult.builder()
-              .orderBooks(orderBooks.filterNot(ob => ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty).asJavaCollection)
-              .transactions(transactions)
-              .build()
-          ))
-        }
-      case ProcessPositionOrder(po) =>
-        activeBrokers += po.getBroker
-        println(s"Active brokers: ${ activeBrokers }")
-        val bookActor = bookActorRef(po.getProduct)
-        if(po.getSide == Side.BUY)
-          bookActor ! OrderBookActor.BuyOrder(po)
-        else
-          bookActor ! OrderBookActor.SellOrder(po)
-      case ProcessModificationOrder(mo) =>
-        activeBrokers += mo.getBroker
-        println(s"Active brokers: ${ activeBrokers }")
-        books.values.foreach (_ ! OrderBookActor.ModifyOrder(mo))
-      case ProcessCancellationOrder(co) =>
-        activeBrokers += co.getBroker
-        println(s"Active brokers: ${ activeBrokers }")
-        books.values.foreach (_ ! OrderBookActor.CancelOrder(co))
-      case Start => println("Starting")
-    }
+  private[this] def active(data: Data): Receive = {
+    case ProcessPositionOrder(po) if po.getSide == Side.BUY =>
+      orderBookActorRef(data, po.getProduct) ! OrderBookActor.BuyOrder(po)
+    case ProcessPositionOrder(po) if po.getSide == Side.SELL =>
+      orderBookActorRef(data, po.getProduct) ! OrderBookActor.SellOrder(po)
+    case ProcessModificationOrder(mo) =>
+      data.orderBookActors.values.foreach(_ ! OrderBookActor.ModifyOrder(mo))
+    case ProcessCancellationOrder(co) =>
+      data.orderBookActors.values.foreach(_ ! OrderBookActor.CancelOrder(co))
+    case BrokerStopped(broker) =>
+      data.activeBrokers -= broker
+      if (data.activeBrokers.isEmpty) gatherResults(data)
+    case RecordTransactions(ts) =>
+      data.createdTransactions.addAll(ts)
+    case RecordOrderBook(orderBook) =>
+      data.createdOrderBooks += orderBook
+      if (data.createdOrderBooks.size == data.orderBookActors.size) {
+        context.system.terminate()
+        sendSummaryToListener(data)
+      }
   }
 
-  private[this] def bookActorRef(product: String): ActorRef = {
-    books.getOrElseUpdate(product, context.actorOf(Props(classOf[OrderBookActor], self, product), product))
+  private[this] def orderBookActorRef(data: Data, product: String): ActorRef = {
+    data.orderBookActors.getOrElseUpdate(
+      key = product,
+      op  = context.actorOf(Props(classOf[OrderBookActor], self, product), product)
+    )
   }
 
-  private[this] def gatherResults(): Unit = {
-    println("Will gather results as all brokers are gone")
-    books.values.foreach {
-      _ ! OrderBookActor.GetTransactions
-    }
+  private[this] def gatherResults(data: Data): Unit = {
+    data.orderBookActors.values.foreach(_ ! OrderBookActor.GetResults)
+  }
+
+  private[this] def sendSummaryToListener(data: Data) = {
+    data.processingListener.foreach(_.processingDone(
+      new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions))
+    )
   }
 }
 
 object ExchangeActor {
+
+  private case class Data(processingListener: Option[ProcessingListener] = None,
+                          activeBrokers: mutable.Set[Broker] = mutable.Set(),
+                          orderBookActors: mutable.Map[String, ActorRef] = mutable.Map(),
+                          createdOrderBooks: mutable.Set[OrderBook] = mutable.Set(),
+                          createdTransactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]())
+
   sealed trait ExchangeCommand
+
+  // Idle state
   case class Register(processingListener: ProcessingListener)             extends ExchangeCommand
-  case class Brokers(brokers: Set[String])                                extends ExchangeCommand
+  case class Brokers(brokers: Set[Broker])                                extends ExchangeCommand
+  case object Start                                                       extends ExchangeCommand
+
+  // Active state
   case class ProcessModificationOrder(mo: ModificationOrder)              extends ExchangeCommand
   case class ProcessPositionOrder(po: PositionOrder)                      extends ExchangeCommand
   case class ProcessCancellationOrder(co: CancellationOrder)              extends ExchangeCommand
-  case class BrokerStopped(broker: String)                                extends ExchangeCommand
+  case class BrokerStopped(broker: Broker)                                extends ExchangeCommand
   case class RecordTransactions(transactions: util.HashSet[Transaction])  extends ExchangeCommand
   case class RecordOrderBook(orderBook: OrderBook)                        extends ExchangeCommand
-  case object Start                                                       extends ExchangeCommand
+}
+
+class SolutionResultBuilder {
+
+  private def isEmpty(ob: OrderBook): Boolean = {
+    ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty
+  }
+
+  def build(orderBooks: mutable.Set[OrderBook], transactions: util.HashSet[Transaction]): SolutionResult = {
+    SolutionResult.builder()
+      .orderBooks(orderBooks.filterNot(isEmpty).asJavaCollection)
+      .transactions(transactions)
+      .build()
+  }
 }
