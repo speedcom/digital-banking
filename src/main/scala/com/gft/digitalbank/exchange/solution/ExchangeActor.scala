@@ -65,9 +65,9 @@ class ExchangeActor extends Actor with ActorLogging {
 object ExchangeActor {
 
   private case class Data(processingListener: Option[ProcessingListener] = None,
-                          activeBrokers: mutable.Set[Broker] = mutable.Set(),
+                          activeBrokers: mutable.Set[Broker] = mutable.Set.empty[Broker],
                           orderBookActors: mutable.Map[String, ActorRef] = mutable.Map(),
-                          createdOrderBooks: mutable.Set[OrderBook] = mutable.Set(),
+                          createdOrderBooks: mutable.Set[OrderBook] = mutable.Set.empty[OrderBook],
                           createdTransactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]())
 
   sealed trait ExchangeCommand
