@@ -56,8 +56,9 @@ class ExchangeActor extends Actor with ActorLogging {
   }
 
   private[this] def sendSummaryToListener(data: Data) = {
-    lazy val solution = new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions)
-    data.processingListener.foreach(_.processingDone(solution))
+    data.processingListener.foreach(_.processingDone(
+      new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions))
+    )
   }
 }
 
