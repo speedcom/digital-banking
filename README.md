@@ -1,3 +1,16 @@
-Please do not fork this repository on your own. GFT will create a dedicated repository for your solution for you by forking this repository.
+# README
 
-Documentation is available at https://bitbucket.org/digitalbanking/contest2016/overview
+## Akka
+
+## SBT
+
+## Performance
+
+## Tests
+
+## Code Analysis
+
+1. Scalastyle
+2. Scapegoat
+3. Scalafmt
+4. Code review
