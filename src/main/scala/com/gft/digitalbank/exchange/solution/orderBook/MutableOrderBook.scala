@@ -10,7 +10,7 @@ class MutableOrderBook(product: String) {
   private[this] val sellOrders = new SellOrders
   private[this] val transactor = new OrderBookTransactor(product)
   private[this] val summary    = new OrderBookSummary(product)
-  private[this] val matcher    = new OrdersMatcher(buyOrders, sellOrders)
+  private[this] val matcher    = new OrdersMatcher
 
   def getTransactions: Transactions = transactor.getTransactions
 
@@ -43,7 +43,7 @@ class MutableOrderBook(product: String) {
   @inline
   final private[this] def runOrderBook(): Unit = {
     for {
-      matched <- matcher.matchOrders()
+      matched <- matcher.matchOrders(buyOrders, sellOrders)
       if transactor.addTransaction(matched.bestBuyOffer, matched.bestSellOffer, matched.amountLimit, matched.priceLimit)
       _ <- Option(buyOrders.poll())
       _ <- Option(sellOrders.poll())
