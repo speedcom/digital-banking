@@ -47,7 +47,7 @@ class ExchangeActor extends Actor with ActorLogging {
   private[this] def orderBookActorRef(data: Data, product: String): ActorRef = {
     data.orderBookActors.getOrElseUpdate(
       key = product,
-      op  = context.actorOf(Props(classOf[OrderBookActor], self, product), product)
+      op = context.actorOf(OrderBookActor.props(self, OrderBookProduct(product)), name = product)
     )
   }
 

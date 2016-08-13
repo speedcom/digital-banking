@@ -2,7 +2,9 @@ package com.gft.digitalbank.exchange.solution.orderBook
 
 import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
+import com.gft.digitalbank.exchange.solution.OrderBookProduct
 import org.scalatest.{FlatSpec, Matchers}
+
 import scala.collection.JavaConverters._
 
 class OrderBookTransactorTest extends FlatSpec with Matchers {
@@ -11,7 +13,7 @@ class OrderBookTransactorTest extends FlatSpec with Matchers {
 
   it should "increment transactions ids by one" in {
     // given
-    val transactor = new OrderBookTransactor("GOOG")
+    val transactor = new OrderBookTransactor(OrderBookProduct("GOOG"))
 
     transactor.addTransaction(
       buy  = buildBuyPositionOrder(id = 1),

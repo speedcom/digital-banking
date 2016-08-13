@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
+import com.gft.digitalbank.exchange.solution.OrderBookProduct
 import com.gft.digitalbank.exchange.solution.orderBook.MutableOrderBook
 import org.openjdk.jmh.annotations._
 
@@ -38,7 +39,7 @@ class OrderBookMoreSellVolumeBenchmark {
   @Setup
   def prepare: Unit = {
     val id = new AtomicInteger(0)
-    book = new MutableOrderBook("SCALA")
+    book = new MutableOrderBook(OrderBookProduct("SCALA"))
     sellOrders = Array.fill(100) {
       buildSellPositionOrder(id.incrementAndGet())
     }

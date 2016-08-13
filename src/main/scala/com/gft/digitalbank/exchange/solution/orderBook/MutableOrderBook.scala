@@ -3,8 +3,9 @@ package com.gft.digitalbank.exchange.solution.orderBook
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder}
 import com.gft.digitalbank.exchange.model.OrderBook
 import PositionOrderOps._
+import com.gft.digitalbank.exchange.solution.OrderBookProduct
 
-class MutableOrderBook(product: String) {
+class MutableOrderBook(product: OrderBookProduct) {
 
   private[this] val buyOrders  = new BuyOrders
   private[this] val sellOrders = new SellOrders

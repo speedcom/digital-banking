@@ -4,12 +4,13 @@ import java.util.{ArrayList => JArrayList}
 
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderEntry}
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
+import com.gft.digitalbank.exchange.solution.OrderBookProduct
 
-private[orderBook] class OrderBookSummary(product: String) {
+private[orderBook] class OrderBookSummary(product: OrderBookProduct) {
 
   def prepare(buyOrders: BuyOrders, sellOrders: SellOrders): OrderBook = {
     OrderBook.builder()
-      .product(product)
+      .product(product.product)
       .buyEntries(prepareEntries(buyOrders))
       .sellEntries(prepareEntries(sellOrders))
       .build()

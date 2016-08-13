@@ -4,9 +4,10 @@ import java.util.{HashSet => JHashSet}
 
 import com.gft.digitalbank.exchange.model.Transaction
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
+import com.gft.digitalbank.exchange.solution.OrderBookProduct
 import com.google.common.collect.Sets
 
-private[orderBook] final class OrderBookTransactor(product: String) {
+private[orderBook] final class OrderBookTransactor(product: OrderBookProduct) {
 
   private[this] val transactions = Sets.newHashSet[Transaction]()
 
@@ -26,7 +27,7 @@ private[orderBook] final class OrderBookTransactor(product: String) {
       .brokerSell(sell.getBroker)
       .clientBuy(buy.getClient)
       .clientSell(sell.getClient)
-      .product(product)
+      .product(product.product)
       .build()
   }
 }

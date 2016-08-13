@@ -1,5 +1,6 @@
 package com.gft.digitalbank.exchange.solution.orderBook
 
+import com.gft.digitalbank.exchange.solution.OrderBookProduct
 import org.scalatest.{FlatSpec, Matchers}
 
 class MutableOrderBookTest extends FlatSpec with Matchers {
@@ -8,7 +9,7 @@ class MutableOrderBookTest extends FlatSpec with Matchers {
 
   it should "produce empty transaction set and empty final order-book when nothing was processed" in {
     // given
-    val googleOrderBook = new MutableOrderBook("GOOG")
+    val googleOrderBook = new MutableOrderBook(OrderBookProduct("GOOG"))
 
     // when
     val finalTransactions = googleOrderBook.getTransactions
@@ -22,7 +23,7 @@ class MutableOrderBookTest extends FlatSpec with Matchers {
 
   it should "set correct product name for order-book" in {
     // given
-    val googleOrderBook = new MutableOrderBook("GOOG")
+    val googleOrderBook = new MutableOrderBook(OrderBookProduct("GOOG"))
 
     // when
     val finalOrderBook = googleOrderBook.getOrderBook
