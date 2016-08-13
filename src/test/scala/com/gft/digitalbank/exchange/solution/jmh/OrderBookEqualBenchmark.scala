@@ -50,6 +50,18 @@ class OrderBookEqualBenchmark {
   }
 
   @Benchmark
+  def onlyBuy(): Unit = {
+    buyOrders.foreach(book.handleBuyOrder)
+    book.getTransactions
+  }
+
+  @Benchmark
+  def onlySell(): Unit = {
+    sellOrders.foreach(book.handleSellOrder)
+    book.getTransactions
+  }
+
+  @Benchmark
   def allBuyThenSell(): Unit = {
     buyOrders.foreach(book.handleBuyOrder)
     sellOrders.foreach(book.handleSellOrder)
@@ -82,5 +94,4 @@ class OrderBookEqualBenchmark {
     }
     book.getTransactions
   }
-
 }
