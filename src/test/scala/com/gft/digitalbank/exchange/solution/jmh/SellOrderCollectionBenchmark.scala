@@ -57,5 +57,4 @@ class SellOrderCollectionBenchmark {
       sellOrders.poll()
     }
   }
-
 }

@@ -82,5 +82,4 @@ class OrderBookMoreSellVolumeBenchmark {
     }
     book.getTransactions
   }
-
 }

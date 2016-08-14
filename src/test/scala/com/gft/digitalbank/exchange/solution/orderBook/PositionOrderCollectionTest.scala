@@ -61,5 +61,4 @@ class PositionOrderCollectionTest extends FlatSpec with Matchers {
       .details(OrderDetails.builder().amount(1).price(1).build())
       .build()
   }
-
 }
