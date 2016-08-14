@@ -8,9 +8,9 @@ import com.gft.digitalbank.exchange.solution.orderBook.BuyOrders
 import org.openjdk.jmh.annotations._
 
 @State(Scope.Thread)
-class BuyOrderCollectionBenchmark {
+class SellOrderCollectionBenchmark {
 
-  var buyOrders: BuyOrders = _
+  var sellOrders: BuyOrders = _
   var orders: Array[PositionOrder] = _
   @inline
   final private[this] def buildBuyOrder(id: Int, amount:Int = 100, price:Int = 10) = {
@@ -21,7 +21,7 @@ class BuyOrderCollectionBenchmark {
       .broker("broker")
       .client("client-"+ id)
       .product("SCALA")
-      .side(Side.BUY)
+      .side(Side.SELL)
       .details(OrderDetails.builder().amount(amount).price(price).build())
       .build()
   }
@@ -29,32 +29,32 @@ class BuyOrderCollectionBenchmark {
   @Setup
   def prepare: Unit = {
     val id = new AtomicInteger(0)
-    buyOrders = new BuyOrders
+    sellOrders = new BuyOrders
     orders = Array.fill(100)(buildBuyOrder(id.incrementAndGet()))
-    orders.foreach(buyOrders.add)
+    orders.foreach(sellOrders.add)
   }
 
   @Benchmark
   def add: Unit = {
-    orders.foreach(buyOrders.add)
+    orders.foreach(sellOrders.add)
   }
 
   @Benchmark
   def pollOneByOne: Unit = {
-    while(buyOrders.nonEmpty)
-      buyOrders.poll()
+    while(sellOrders.nonEmpty)
+      sellOrders.poll()
   }
 
   @Benchmark
   def peekFirst: Unit = {
-    buyOrders.peekOpt
+    sellOrders.peekOpt
   }
 
   @Benchmark
   def peekThenPollOneByOne: Unit = {
-    while(buyOrders.nonEmpty) {
-      buyOrders.peekOpt
-      buyOrders.poll()
+    while(sellOrders.nonEmpty) {
+      sellOrders.peekOpt
+      sellOrders.poll()
     }
   }
 
