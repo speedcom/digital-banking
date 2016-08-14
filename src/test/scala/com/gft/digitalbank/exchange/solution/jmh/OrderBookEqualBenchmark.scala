@@ -25,7 +25,7 @@ class OrderBookEqualBenchmark {
       .broker("broker")
       .client("client-"+ id)
       .product("SCALA")
-      .side(Side.BUY)
+      .side(side)
       .details(OrderDetails.builder().amount(amount).price(price).build())
       .build()
   }
