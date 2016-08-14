@@ -1,6 +1,9 @@
 # README
 
-Transaction engine for a stock exchange.
+**Transaction engine for a stock exchange.**
+
+In the next couple of paragraphs we are going to cover our technology of choice and motivation behind this.
+
 
 ## Scala
 
@@ -23,7 +26,7 @@ More info can be found [here](http://www.scala-sbt.org/).
 
 ## Tests
 
-Besides standard pack of functional and performance tests prepared by guys from GFT (we love them!) we decided to write our owns making whole code coverage higher.
+Besides standard pack of functional and performance tests prepared by GFT team we decided to write our owns making the whole code coverage higher.
 
 As a Scala testing framework we chose [ScalaTest](http://www.artima.com/scalatest/).
 
