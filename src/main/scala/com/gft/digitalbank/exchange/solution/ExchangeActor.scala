@@ -22,32 +22,52 @@ class ExchangeActor extends Actor with ActorLogging {
   }
 
   private[this] def active(data: Data): Receive = {
-    case ProcessPositionOrder(po) if po.getSide == Side.BUY =>
-      orderBookActorRef(data, po.getProduct) ! OrderBookActor.BuyOrder(po)
-    case ProcessPositionOrder(po) if po.getSide == Side.SELL =>
-      orderBookActorRef(data, po.getProduct) ! OrderBookActor.SellOrder(po)
-    case ProcessModificationOrder(mo) =>
-      data.orderBookActors.values.foreach(_ ! OrderBookActor.ModifyOrder(mo))
-    case ProcessCancellationOrder(co) =>
-      data.orderBookActors.values.foreach(_ ! OrderBookActor.CancelOrder(co))
-    case BrokerStopped(broker) =>
-      data.activeBrokers -= broker
-      if (data.activeBrokers.isEmpty) gatherResults(data)
-    case RecordTransactions(ts) =>
-      data.createdTransactions.addAll(ts)
-    case RecordOrderBook(orderBook) =>
-      data.createdOrderBooks += orderBook
-      if (data.createdOrderBooks.size == data.orderBookActors.size) {
-        context.system.terminate()
-        sendSummaryToListener(data)
-      }
+    case ProcessPositionOrder(po) if po.getSide == Side.BUY  => handleBuyOrder(data, po)
+    case ProcessPositionOrder(po) if po.getSide == Side.SELL => handleSellOrder(data, po)
+    case ProcessModificationOrder(mo)                        => handleModificationOrder(data, mo)
+    case ProcessCancellationOrder(co)                        => handleCancellationOrder(data, co)
+    case BrokerStopped(broker)                               => handleBrokerStopped(data, broker)
+    case RecordTransactions(ts)                              => handleRecordTransactions(data, ts)
+    case RecordOrderBook(orderBook)                          => handleRecordOrderBook(data, orderBook)
   }
 
-  private[this] def orderBookActorRef(data: Data, product: String): ActorRef = {
-    val orderBookProduct = OrderBookProduct(product)
+  private[this] def handleBuyOrder(data: Data, po: PositionOrder): Unit = {
+    orderBookActorRef(data, OrderBookProduct(po.getProduct)) ! OrderBookActor.BuyOrder(po)
+  }
+
+  private[this] def handleSellOrder(data: Data, po: PositionOrder): Unit = {
+    orderBookActorRef(data, OrderBookProduct(po.getProduct)) ! OrderBookActor.SellOrder(po)
+  }
+
+  private[this] def handleModificationOrder(data: Data, mo: ModificationOrder): Unit = {
+    data.orderBookActors.values.foreach(_ ! OrderBookActor.ModifyOrder(mo))
+  }
+
+  private[this] def handleCancellationOrder(data: Data, co: CancellationOrder): Unit = {
+    data.orderBookActors.values.foreach(_ ! OrderBookActor.CancelOrder(co))
+  }
+
+  private[this] def handleBrokerStopped(data: Data, broker: Broker): Unit = {
+    data.activeBrokers -= broker
+    if (data.activeBrokers.isEmpty) gatherResults(data)
+  }
+
+  private[this] def handleRecordTransactions(data: Data, ts: util.HashSet[Transaction]): Unit = {
+    data.createdTransactions.addAll(ts)
+  }
+
+  private[this] def handleRecordOrderBook(data: Data, orderBook: OrderBook): Unit = {
+    data.createdOrderBooks += orderBook
+    if (data.createdOrderBooks.size == data.orderBookActors.size) {
+      context.system.terminate()
+      sendSummaryToListener(data)
+    }
+  }
+
+  private[this] def orderBookActorRef(data: Data, orderBookProduct: OrderBookProduct): ActorRef = {
     data.orderBookActors.getOrElseUpdate(
       key = orderBookProduct,
-      op  = context.actorOf(OrderBookActor.props(self, orderBookProduct), name = product)
+      op  = context.actorOf(OrderBookActor.props(self, orderBookProduct), name = orderBookProduct.product)
     )
   }
 
@@ -56,8 +76,8 @@ class ExchangeActor extends Actor with ActorLogging {
   }
 
   private[this] def sendSummaryToListener(data: Data) = {
-    data.processingListener.foreach(_.processingDone(
-      new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions))
+    data.processingListener.foreach(_.processingDone(new SolutionResultBuilder()
+      .build(data.createdOrderBooks, data.createdTransactions))
     )
   }
 }
