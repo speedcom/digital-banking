@@ -5,10 +5,9 @@ import java.util
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.gft.digitalbank.exchange.listener.ProcessingListener
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, Side}
-import com.gft.digitalbank.exchange.model.{OrderBook, SolutionResult, Transaction}
+import com.gft.digitalbank.exchange.model.{OrderBook, Transaction}
 import com.google.common.collect.Sets
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class ExchangeActor extends Actor with ActorLogging {
@@ -85,18 +84,4 @@ object ExchangeActor {
   case class BrokerStopped(broker: Broker)                                extends ExchangeCommand
   case class RecordTransactions(transactions: util.HashSet[Transaction])  extends ExchangeCommand
   case class RecordOrderBook(orderBook: OrderBook)                        extends ExchangeCommand
-}
-
-class SolutionResultBuilder {
-
-  private def isEmpty(ob: OrderBook): Boolean = {
-    ob.getBuyEntries.isEmpty && ob.getSellEntries.isEmpty
-  }
-
-  def build(orderBooks: mutable.Set[OrderBook], transactions: util.HashSet[Transaction]): SolutionResult = {
-    SolutionResult.builder()
-      .orderBooks(orderBooks.filterNot(isEmpty).asJavaCollection)
-      .transactions(transactions)
-      .build()
-  }
 }
