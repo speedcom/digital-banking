@@ -17,7 +17,7 @@ class ExchangeActor extends Actor with ActorLogging {
 
   private[this] def idle(data: Data): Receive = {
     case Register(listener)  => context.become(idle(data.copy(processingListener = Some(listener))))
-    case Brokers(newBrokers) => context.become(idle(data.copy(activeBrokers = mutable.Set(newBrokers.toArray:_*))))
+    case Brokers(newBrokers) => context.become(idle(data.copy(activeBrokers = mutable.Set(newBrokers.toArray: _*))))
     case Start               => context.become(active(data))
   }
 
@@ -72,7 +72,7 @@ class ExchangeActor extends Actor with ActorLogging {
   private[this] def orderBookActorRef(data: Data, orderBookProduct: OrderBookProduct): ActorRef = {
     data.orderBookActors.getOrElseUpdate(
       key = orderBookProduct,
-      op  = context.actorOf(OrderBookActor.props(self, orderBookProduct), name = orderBookProduct.product)
+      op = context.actorOf(OrderBookActor.props(self, orderBookProduct), name = orderBookProduct.product)
     )
   }
 
@@ -83,7 +83,7 @@ class ExchangeActor extends Actor with ActorLogging {
   }
 
   @inline
-  private[this] def finishIfDone(data: Data):Unit = {
+  private[this] def finishIfDone(data: Data): Unit = {
     if (data.createdOrderBooks.size == data.orderBookActors.size) {
       context.system.terminate()
       sendSummaryToListener(data)
@@ -92,32 +92,30 @@ class ExchangeActor extends Actor with ActorLogging {
 
   @inline
   private[this] def sendSummaryToListener(data: Data) = {
-    data.processingListener.foreach(_.processingDone(new SolutionResultBuilder()
-      .build(data.createdOrderBooks, data.createdTransactions))
-    )
+    data.processingListener.foreach(_.processingDone(new SolutionResultBuilder().build(data.createdOrderBooks, data.createdTransactions)))
   }
 }
 
 object ExchangeActor {
 
-  private case class Data(processingListener: Option[ProcessingListener]           = None,
-                          activeBrokers: mutable.Set[Broker]                       = mutable.Set.empty[Broker],
+  private case class Data(processingListener: Option[ProcessingListener] = None,
+                          activeBrokers: mutable.Set[Broker] = mutable.Set.empty[Broker],
                           orderBookActors: mutable.Map[OrderBookProduct, ActorRef] = mutable.Map(),
-                          createdOrderBooks: mutable.Set[OrderBook]                = mutable.Set.empty[OrderBook],
-                          createdTransactions: util.HashSet[Transaction]           = Sets.newHashSet[Transaction]())
+                          createdOrderBooks: mutable.Set[OrderBook] = mutable.Set.empty[OrderBook],
+                          createdTransactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]())
 
   sealed trait ExchangeCommand
 
   // Idle state
-  case class Register(processingListener: ProcessingListener)             extends ExchangeCommand
-  case class Brokers(brokers: Set[Broker])                                extends ExchangeCommand
-  case object Start                                                       extends ExchangeCommand
+  case class Register(processingListener: ProcessingListener) extends ExchangeCommand
+  case class Brokers(brokers: Set[Broker])                    extends ExchangeCommand
+  case object Start                                           extends ExchangeCommand
 
   // Active state
-  case class ProcessModificationOrder(mo: ModificationOrder)              extends ExchangeCommand
-  case class ProcessPositionOrder(po: PositionOrder)                      extends ExchangeCommand
-  case class ProcessCancellationOrder(co: CancellationOrder)              extends ExchangeCommand
-  case class BrokerStopped(broker: Broker)                                extends ExchangeCommand
-  case class RecordTransactions(transactions: util.HashSet[Transaction])  extends ExchangeCommand
-  case class RecordOrderBook(orderBook: OrderBook)                        extends ExchangeCommand
+  case class ProcessModificationOrder(mo: ModificationOrder)             extends ExchangeCommand
+  case class ProcessPositionOrder(po: PositionOrder)                     extends ExchangeCommand
+  case class ProcessCancellationOrder(co: CancellationOrder)             extends ExchangeCommand
+  case class BrokerStopped(broker: Broker)                               extends ExchangeCommand
+  case class RecordTransactions(transactions: util.HashSet[Transaction]) extends ExchangeCommand
+  case class RecordOrderBook(orderBook: OrderBook)                       extends ExchangeCommand
 }

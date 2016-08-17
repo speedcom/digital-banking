@@ -10,10 +10,10 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: OrderBookProduct) exte
   private[this] val orderBook = new MutableOrderBook(product)
 
   override def receive: Receive = {
-    case BuyOrder(b)     => orderBook.handleBuyOrder(b)
-    case SellOrder(s)    => orderBook.handleSellOrder(s)
-    case CancelOrder(c)  => orderBook.handleCancellationOrder(c)
-    case ModifyOrder(m)  => orderBook.handleModificationOrder(m)
+    case BuyOrder(b)    => orderBook.handleBuyOrder(b)
+    case SellOrder(s)   => orderBook.handleSellOrder(s)
+    case CancelOrder(c) => orderBook.handleCancellationOrder(c)
+    case ModifyOrder(m) => orderBook.handleModificationOrder(m)
     case GetResults =>
       exchangeActorRef ! ExchangeActor.RecordTransactions(orderBook.getTransactions.transactions)
       exchangeActorRef ! ExchangeActor.RecordOrderBook(orderBook.getOrderBook)

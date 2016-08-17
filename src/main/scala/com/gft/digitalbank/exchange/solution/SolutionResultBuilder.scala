@@ -12,9 +12,6 @@ class SolutionResultBuilder {
   }
 
   def build(orderBooks: mutable.Set[OrderBook], transactions: util.HashSet[Transaction]): SolutionResult = {
-    SolutionResult.builder()
-      .orderBooks(orderBooks.filterNot(isEmpty).asJavaCollection)
-      .transactions(transactions)
-      .build()
+    SolutionResult.builder().orderBooks(orderBooks.filterNot(isEmpty).asJavaCollection).transactions(transactions).build()
   }
 }
