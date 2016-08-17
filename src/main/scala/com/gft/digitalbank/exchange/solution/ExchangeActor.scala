@@ -2,7 +2,7 @@ package com.gft.digitalbank.exchange.solution
 
 import java.util
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.gft.digitalbank.exchange.listener.ProcessingListener
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, Side}
 import com.gft.digitalbank.exchange.model.{OrderBook, SolutionResult, Transaction}
@@ -45,9 +45,10 @@ class ExchangeActor extends Actor with ActorLogging {
   }
 
   private[this] def orderBookActorRef(data: Data, product: String): ActorRef = {
+    val orderBookProduct = OrderBookProduct(product)
     data.orderBookActors.getOrElseUpdate(
-      key = product,
-      op = context.actorOf(OrderBookActor.props(self, OrderBookProduct(product)), name = product)
+      key = orderBookProduct,
+      op  = context.actorOf(OrderBookActor.props(self, orderBookProduct), name = product)
     )
   }
 
@@ -64,11 +65,11 @@ class ExchangeActor extends Actor with ActorLogging {
 
 object ExchangeActor {
 
-  private case class Data(processingListener: Option[ProcessingListener] = None,
-                          activeBrokers: mutable.Set[Broker] = mutable.Set.empty[Broker],
-                          orderBookActors: mutable.Map[String, ActorRef] = mutable.Map(),
-                          createdOrderBooks: mutable.Set[OrderBook] = mutable.Set.empty[OrderBook],
-                          createdTransactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]())
+  private case class Data(processingListener: Option[ProcessingListener]           = None,
+                          activeBrokers: mutable.Set[Broker]                       = mutable.Set.empty[Broker],
+                          orderBookActors: mutable.Map[OrderBookProduct, ActorRef] = mutable.Map(),
+                          createdOrderBooks: mutable.Set[OrderBook]                = mutable.Set.empty[OrderBook],
+                          createdTransactions: util.HashSet[Transaction]           = Sets.newHashSet[Transaction]())
 
   sealed trait ExchangeCommand
 
