@@ -1,4 +1,3 @@
-
 cancelable in Global := true
 
 enablePlugins(JmhPlugin)
@@ -13,3 +12,4 @@ javaOptions in Jmh ++= Seq("-Xms4g", "-Xmx4g")
 
 scalacOptions ++= Seq("-optimise", "-Yclosure-elim", "-Yinline")
 
+scalafmtConfig in ThisBuild := Some(file(".scalafmt"))

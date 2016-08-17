@@ -9,4 +9,3 @@ addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.0.4")
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.2.10")
 
 addSbtPlugin("com.geirsson" % "sbt-scalafmt" % "0.3.0")
-
