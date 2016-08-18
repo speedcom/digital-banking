@@ -58,10 +58,7 @@ class ExchangeActor extends Actor with ActorLogging {
 
   private[this] def handleRecordOrderBook(data: Data, orderBook: OrderBook): Unit = {
     data.createdOrderBooks += orderBook
-    if (data.createdOrderBooks.size == data.orderBookActors.size) {
-      context.system.terminate()
-      sendSummaryToListener(data)
-    }
+    finishIfDone(data)
   }
 
   private[this] def orderBookActorRef(data: Data, orderBookProduct: OrderBookProduct): ActorRef = {
@@ -73,6 +70,14 @@ class ExchangeActor extends Actor with ActorLogging {
 
   private[this] def gatherResults(data: Data): Unit = {
     data.orderBookActors.values.foreach(_ ! OrderBookActor.GetResults)
+    finishIfDone(data)
+  }
+
+  private[this] def finishIfDone(data: Data):Unit = {
+    if (data.createdOrderBooks.size == data.orderBookActors.size) {
+      context.system.terminate()
+      sendSummaryToListener(data)
+    }
   }
 
   private[this] def sendSummaryToListener(data: Data) = {
