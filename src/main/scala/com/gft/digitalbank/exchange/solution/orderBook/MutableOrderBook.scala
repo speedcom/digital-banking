@@ -23,8 +23,7 @@ class MutableOrderBook(product: OrderBookProduct) {
 
   def handleCancellationOrder(co: CancellationOrder): Unit = {
     val idAndBrokerSame = (po: PositionOrder) => po.getId == co.getCancelledOrderId && po.getBroker == co.getBroker
-    buyOrders.removeIf(idAndBrokerSame)
-    sellOrders.removeIf(idAndBrokerSame)
+    if (!buyOrders.removeIf(idAndBrokerSame)) sellOrders.removeIf(idAndBrokerSame)
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
