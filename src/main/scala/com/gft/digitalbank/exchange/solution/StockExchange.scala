@@ -12,13 +12,13 @@ import scala.collection.JavaConverters._
 
 class StockExchange extends Exchange {
 
-  val context           = new InitialContext()
-  val connectionFactory = context.lookup("ConnectionFactory").asInstanceOf[ConnectionFactory]
-  val connection        = connectionFactory.createConnection()
-  val session           = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+  private[this] val context           = new InitialContext()
+  private[this] val connectionFactory = context.lookup("ConnectionFactory").asInstanceOf[ConnectionFactory]
+  private[this] val connection        = connectionFactory.createConnection()
+  private[this] val session           = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
 
-  implicit val system  = ActorSystem()
-  val exchangeActorRef = system.actorOf(Props[ExchangeActor], "exchange")
+  private[this] implicit val system  = ActorSystem()
+  private[this] val exchangeActorRef = system.actorOf(Props[ExchangeActor], "exchange")
 
   override def register(processingListener: ProcessingListener): Unit = {
     exchangeActorRef.tell(ExchangeActor.Register(processingListener), ActorRef.noSender)

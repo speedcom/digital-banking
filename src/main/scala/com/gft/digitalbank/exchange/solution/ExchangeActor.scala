@@ -31,39 +31,44 @@ class ExchangeActor extends Actor with ActorLogging {
     case RecordOrderBook(orderBook)                          => handleRecordOrderBook(data, orderBook)
   }
 
+  @inline
   private[this] def handleBuyOrder(data: Data, po: PositionOrder): Unit = {
     orderBookActorRef(data, OrderBookProduct(po.getProduct)) ! OrderBookActor.BuyOrder(po)
   }
 
+  @inline
   private[this] def handleSellOrder(data: Data, po: PositionOrder): Unit = {
     orderBookActorRef(data, OrderBookProduct(po.getProduct)) ! OrderBookActor.SellOrder(po)
   }
 
+  @inline
   private[this] def handleModificationOrder(data: Data, mo: ModificationOrder): Unit = {
     data.orderBookActors.values.foreach(_ ! OrderBookActor.ModifyOrder(mo))
   }
 
+  @inline
   private[this] def handleCancellationOrder(data: Data, co: CancellationOrder): Unit = {
     data.orderBookActors.values.foreach(_ ! OrderBookActor.CancelOrder(co))
   }
 
+  @inline
   private[this] def handleBrokerStopped(data: Data, broker: Broker): Unit = {
     data.activeBrokers -= broker
     if (data.activeBrokers.isEmpty) gatherResults(data)
   }
 
+  @inline
   private[this] def handleRecordTransactions(data: Data, ts: util.HashSet[Transaction]): Unit = {
     data.createdTransactions.addAll(ts)
   }
 
+  @inline
   private[this] def handleRecordOrderBook(data: Data, orderBook: OrderBook): Unit = {
     data.createdOrderBooks += orderBook
-    if (data.createdOrderBooks.size == data.orderBookActors.size) {
-      context.system.terminate()
-      sendSummaryToListener(data)
-    }
+    finishIfDone(data)
   }
 
+  @inline
   private[this] def orderBookActorRef(data: Data, orderBookProduct: OrderBookProduct): ActorRef = {
     data.orderBookActors.getOrElseUpdate(
       key = orderBookProduct,
@@ -71,10 +76,21 @@ class ExchangeActor extends Actor with ActorLogging {
     )
   }
 
+  @inline
   private[this] def gatherResults(data: Data): Unit = {
     data.orderBookActors.values.foreach(_ ! OrderBookActor.GetResults)
+    finishIfDone(data)
   }
 
+  @inline
+  private[this] def finishIfDone(data: Data):Unit = {
+    if (data.createdOrderBooks.size == data.orderBookActors.size) {
+      context.system.terminate()
+      sendSummaryToListener(data)
+    }
+  }
+
+  @inline
   private[this] def sendSummaryToListener(data: Data) = {
     data.processingListener.foreach(_.processingDone(new SolutionResultBuilder()
       .build(data.createdOrderBooks, data.createdTransactions))
