@@ -10,8 +10,6 @@ import scala.concurrent.duration._
 
 object BenchmarkApp extends App {
 
-  private[this] lazy val broker = Broker("broker")
-
   def timed[T](block: => T): T = {
     val startTime = System.currentTimeMillis()
     val ret       = block
@@ -73,7 +71,7 @@ object BenchmarkApp extends App {
         .builder()
         .id(id)
         .timestamp(timeCounter.incrementAndGet())
-        .broker(broker.broker)
+        .broker("broker")
         .client("client-" + id)
         .product("SCL")
         .side(side)
