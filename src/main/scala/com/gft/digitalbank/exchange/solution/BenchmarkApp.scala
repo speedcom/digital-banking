@@ -63,8 +63,9 @@ object BenchmarkApp extends App {
   }
 
   private[this] val timeCounter = new AtomicInteger(1)
+
   @inline
-  final private[this] def buildPositionOrder(side: Side, id: Int, amount: Int = 100, price: Int = 10) = {
+  private[this] def buildPositionOrder(side: Side, id: Int, amount: Int = 100, price: Int = 10) = {
     PositionOrder
       .builder()
       .id(id)
