@@ -1,15 +1,13 @@
 package com.gft.digitalbank.exchange.solution
+
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import com.gft.digitalbank.exchange.listener.ProcessingListener
 import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
-import com.gft.digitalbank.exchange.model.{OrderDetails, SolutionResult}
-import com.gft.digitalbank.exchange.solution.ExchangeActor.ProcessPositionOrder
+import com.gft.digitalbank.exchange.model.OrderDetails
 import com.gft.digitalbank.exchange.solution.orderBook.MutableOrderBook
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+
 object BenchmarkApp extends App {
 
   private[this] lazy val broker = Broker("broker")
@@ -90,5 +88,4 @@ object BenchmarkApp extends App {
   for (size <- List(1000, 10 * 1000, 100 * 1000, 1000 * 1000)) {
     timed(runBenchmark(size))
   }
-
 }
