@@ -88,7 +88,7 @@ object BenchmarkApp extends App {
     runTestingScenario(orderBook, size)
   }
 
-  for (size <- List(1000, 10 * 1000, 100 * 1000)) {
+  for (size <- List(1000, 10 * 1000, 100 * 1000, 1000 * 1000)) {
     timed(runBenchmark(size))
   }
 }
