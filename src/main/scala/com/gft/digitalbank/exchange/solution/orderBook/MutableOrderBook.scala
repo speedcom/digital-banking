@@ -23,22 +23,20 @@ class MutableOrderBook(product: OrderBookProduct) {
 
   def handleCancellationOrder(co: CancellationOrder): Unit = {
     val idAndBrokerSame = (po: PositionOrder) => po.getId == co.getCancelledOrderId && po.getBroker == co.getBroker
-    buyOrders.removeIf(idAndBrokerSame)
-    sellOrders.removeIf(idAndBrokerSame)
+    if (!buyOrders.removeIf(idAndBrokerSame)) sellOrders.removeIf(idAndBrokerSame)
   }
 
   def handleModificationOrder(mo: ModificationOrder): Unit = {
-    def modifyOrder(orders: PositionOrderCollection, mo: ModificationOrder): Unit = {
-      for {
-        order <- orders.findBy(mo.getModifiedOrderId, mo.getBroker)
-        if orders.removeIf(_.getId == mo.getModifiedOrderId)
-      } yield {
-        runOrderBookAfter { orders.add(order.updateVia(mo)) }
+    def modifyOrder(orders: PositionOrderCollection, mo: ModificationOrder): Boolean = {
+      val order = orders.findBy(mo.getModifiedOrderId, mo.getBroker)
+      if (order.isDefined && orders.removeIf(_.getId == mo.getModifiedOrderId)) {
+        runOrderBookAfter { orders.add(order.get.updateVia(mo)) }
+        true
+      } else {
+        false
       }
     }
-
-    modifyOrder(buyOrders, mo)
-    modifyOrder(sellOrders, mo)
+    if (!modifyOrder(buyOrders, mo)) modifyOrder(sellOrders, mo)
   }
 
   @inline
