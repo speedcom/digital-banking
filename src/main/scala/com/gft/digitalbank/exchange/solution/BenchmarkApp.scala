@@ -24,58 +24,61 @@ object BenchmarkApp extends App {
     val orderCounter = new AtomicInteger(0)
     def id           = orderCounter.incrementAndGet()
     def send(positionOrder: PositionOrder) =
-      if (positionOrder.getSide == Side.BUY) mutableOrderBook.handleBuyOrder(positionOrder) else mutableOrderBook.handleSellOrder(positionOrder)
+      if (positionOrder.getSide == Side.BUY)
+        mutableOrderBook.handleBuyOrder(positionOrder)
+      else
+        mutableOrderBook.handleSellOrder(positionOrder)
 
     for (i <- 1 to size) {
-      send(buildPositionOrder(Side.BUY, id))
-      send(buildPositionOrder(Side.SELL, id))
-    }
-
-    for (i <- 1 to size) {
-      send(buildPositionOrder(Side.SELL, id))
-      send(buildPositionOrder(Side.BUY, id))
-    }
-
-    for (i <- 1 to size) {
-      send(buildPositionOrder(Side.SELL, id))
-    }
-    for (i <- 1 to size) {
-      send(buildPositionOrder(Side.BUY, id))
+      send(buildPositionOrder(Side.BUY, id)())
+      send(buildPositionOrder(Side.SELL, id)())
     }
 
     for (i <- 1 to size) {
-      send(buildPositionOrder(Side.BUY, id))
-    }
-    for (i <- 1 to size) {
-      send(buildPositionOrder(Side.SELL, id))
+      send(buildPositionOrder(Side.SELL, id)())
+      send(buildPositionOrder(Side.BUY, id)())
     }
 
-    send(buildPositionOrder(Side.SELL, id, 100 * size))
     for (i <- 1 to size) {
-      send(buildPositionOrder(Side.BUY, id))
+      send(buildPositionOrder(Side.SELL, id)())
+    }
+    for (i <- 1 to size) {
+      send(buildPositionOrder(Side.BUY, id)())
     }
 
-    send(buildPositionOrder(Side.BUY, id, 100 * size))
     for (i <- 1 to size) {
-      send(buildPositionOrder(Side.SELL, id))
+      send(buildPositionOrder(Side.BUY, id)())
+    }
+    for (i <- 1 to size) {
+      send(buildPositionOrder(Side.SELL, id)())
     }
 
+    send(buildPositionOrder(Side.SELL, id, 100 * size)())
+    for (i <- 1 to size) {
+      send(buildPositionOrder(Side.BUY, id)())
+    }
+
+    send(buildPositionOrder(Side.BUY, id, 100 * size)())
+    for (i <- 1 to size) {
+      send(buildPositionOrder(Side.SELL, id)())
+    }
   }
-
-  private[this] val timeCounter = new AtomicInteger(1)
 
   @inline
   private[this] def buildPositionOrder(side: Side, id: Int, amount: Int = 100, price: Int = 10) = {
-    PositionOrder
-      .builder()
-      .id(id)
-      .timestamp(timeCounter.incrementAndGet())
-      .broker(broker.broker)
-      .client("client-" + id)
-      .product("SCL")
-      .side(side)
-      .details(OrderDetails.builder().amount(amount).price(price).build())
-      .build()
+    val timeCounter = new AtomicInteger(1)
+
+    () =>
+      PositionOrder
+        .builder()
+        .id(id)
+        .timestamp(timeCounter.incrementAndGet())
+        .broker(broker.broker)
+        .client("client-" + id)
+        .product("SCL")
+        .side(side)
+        .details(OrderDetails.builder().amount(amount).price(price).build())
+        .build()
   }
 
   def runBenchmark(size: Int = 10): Unit = {
@@ -83,10 +86,9 @@ object BenchmarkApp extends App {
 
     val orderBook = new MutableOrderBook(OrderBookProduct("SCL"))
     runTestingScenario(orderBook, size)
-
   }
 
-  for (size <- List(1000, 10 * 1000, 100 * 1000, 1000 * 1000)) {
+  for (size <- List(1000, 10 * 1000, 100 * 1000)) {
     timed(runBenchmark(size))
   }
 }
