@@ -49,21 +49,19 @@ class MutableOrderBook(product: OrderBookProduct) {
       _ <- Option(buyOrders.poll())
       _ <- Option(sellOrders.poll())
     } yield {
-      val hasBuyEnoughAmount  = matched.bestBuyOffer.getDetails.getAmount  > matched.amountLimit.amount
+      val hasBuyEnoughAmount  = matched.bestBuyOffer.getDetails.getAmount > matched.amountLimit.amount
       val hasSellEnoughAmount = matched.bestSellOffer.getDetails.getAmount > matched.amountLimit.amount
 
       def addBuyOrderWithRestAmount()  = buyOrders.add(matched.bestBuyOffer.minusAmount(matched.amountLimit))
       def addSellOrderWithRestAmount() = sellOrders.add(matched.bestSellOffer.minusAmount(matched.amountLimit))
 
       runOrderBookAfter {
-        if(hasBuyEnoughAmount && hasSellEnoughAmount) {
+        if (hasBuyEnoughAmount && hasSellEnoughAmount) {
           addBuyOrderWithRestAmount()
           addSellOrderWithRestAmount()
-        }
-        else if(hasBuyEnoughAmount) {
+        } else if (hasBuyEnoughAmount) {
           addBuyOrderWithRestAmount()
-        }
-        else if(hasSellEnoughAmount) {
+        } else if (hasSellEnoughAmount) {
           addSellOrderWithRestAmount()
         }
       }

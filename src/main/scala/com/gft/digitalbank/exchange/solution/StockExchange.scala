@@ -26,7 +26,7 @@ class StockExchange extends Exchange {
 
   override def setDestinations(destinations: util.List[String]): Unit = {
     val uniqueDestinations = destinations.asScala.toSet
-    val uniqueBrokers = uniqueDestinations.map(Broker)
+    val uniqueBrokers      = uniqueDestinations.map(Broker)
 
     exchangeActorRef.tell(ExchangeActor.Brokers(uniqueBrokers), ActorRef.noSender)
 

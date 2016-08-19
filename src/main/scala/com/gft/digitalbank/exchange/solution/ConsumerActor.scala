@@ -19,7 +19,7 @@ class ConsumerActor(messageConsumer: MessageConsumer, destination: String, excha
         case Success(order: PositionOrderCommand)     => exchangeActorRef ! ExchangeActor.ProcessPositionOrder(order.po)
         case Success(order: CancellationOrderCommand) => exchangeActorRef ! ExchangeActor.ProcessCancellationOrder(order.co)
         case Success(order: ModificationOrderCommand) => exchangeActorRef ! ExchangeActor.ProcessModificationOrder(order.mo)
-        case Success(order: ShutdownOrderCommand)     =>
+        case Success(order: ShutdownOrderCommand) =>
           exchangeActorRef ! ExchangeActor.BrokerStopped(Broker(order.so.getBroker))
           messageConsumer.close()
           context.stop(self)

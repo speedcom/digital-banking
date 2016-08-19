@@ -31,20 +31,22 @@ private[orderBook] abstract class PositionOrderCollection(comparator: Comparator
   def nonEmpty: Boolean = !isEmpty
 }
 
-final class BuyOrders extends PositionOrderCollection(new Comparator[PositionOrder] {
+final class BuyOrders
+    extends PositionOrderCollection(new Comparator[PositionOrder] {
 
-  private[this] val buyOrdering = Ordering.by[PositionOrder, (Int, Long)] { buy =>
-    (buy.getDetails.getPrice * -1, buy.getTimestamp)
-  }
+      private[this] val buyOrdering = Ordering.by[PositionOrder, (Int, Long)] { buy =>
+        (buy.getDetails.getPrice * -1, buy.getTimestamp)
+      }
 
-  override def compare(o1: PositionOrder, o2: PositionOrder): Int = buyOrdering.compare(o1, o2)
-})
+      override def compare(o1: PositionOrder, o2: PositionOrder): Int = buyOrdering.compare(o1, o2)
+    })
 
-final class SellOrders extends PositionOrderCollection(new Comparator[PositionOrder] {
+final class SellOrders
+    extends PositionOrderCollection(new Comparator[PositionOrder] {
 
-  private[this] val sellOrdering = Ordering.by[PositionOrder, (Int, Long)] { sell =>
-    (sell.getDetails.getPrice, sell.getTimestamp)
-  }
+      private[this] val sellOrdering = Ordering.by[PositionOrder, (Int, Long)] { sell =>
+        (sell.getDetails.getPrice, sell.getTimestamp)
+      }
 
-  override def compare(o1: PositionOrder, o2: PositionOrder): Int = sellOrdering.compare(o1, o2)
-})
+      override def compare(o1: PositionOrder, o2: PositionOrder): Int = sellOrdering.compare(o1, o2)
+    })

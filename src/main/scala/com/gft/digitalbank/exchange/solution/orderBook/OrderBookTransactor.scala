@@ -19,7 +19,8 @@ private[orderBook] final class OrderBookTransactor(product: OrderBookProduct) {
   }
 
   private[this] def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: AmountLimit, priceLimit: PriceLimit) = {
-    Transaction.builder()
+    Transaction
+      .builder()
       .id(transactions.size() + 1)
       .amount(amountLimit.amount)
       .price(priceLimit.price)
