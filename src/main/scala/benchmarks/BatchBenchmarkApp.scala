@@ -1,22 +1,12 @@
-package com.gft.digitalbank.exchange.solution
+package benchmarks
 
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
-import com.gft.digitalbank.exchange.model.OrderDetails
+import com.gft.digitalbank.exchange.solution.OrderBookProduct
 import com.gft.digitalbank.exchange.solution.orderBook.MutableOrderBook
 
-import scala.concurrent.duration._
-
-object BenchmarkApp extends App {
-
-  def timed[T](block: => T): T = {
-    val startTime = System.currentTimeMillis()
-    val ret       = block
-    val took      = (System.currentTimeMillis() - startTime).millis
-    println(s"*** Processing took ${took.toSeconds}s (${took.toMillis}ms)")
-    ret
-  }
+object BatchBenchmarkApp extends App with Timed with PositionOrderHelper {
 
   def runTestingScenario(mutableOrderBook: MutableOrderBook, size: Int): Unit = {
     val orderCounter = new AtomicInteger(0)
@@ -28,8 +18,8 @@ object BenchmarkApp extends App {
         mutableOrderBook.handleSellOrder(positionOrder)
 
     for (i <- 1 to size) {
-      send(buildPositionOrder(Side.BUY, id)())
-      send(buildPositionOrder(Side.SELL, id)())
+      send(buildPositionOrder(Side.BUY, i)())
+      send(buildPositionOrder(Side.SELL, i)())
     }
 
     for (i <- 1 to size) {
@@ -62,23 +52,6 @@ object BenchmarkApp extends App {
     }
   }
 
-  @inline
-  private[this] def buildPositionOrder(side: Side, id: Int, amount: Int = 100, price: Int = 10) = {
-    val timeCounter = new AtomicInteger(1)
-
-    () =>
-      PositionOrder
-        .builder()
-        .id(id)
-        .timestamp(timeCounter.incrementAndGet())
-        .broker("broker")
-        .client("client-" + id)
-        .product("SCL")
-        .side(side)
-        .details(OrderDetails.builder().amount(amount).price(price).build())
-        .build()
-  }
-
   def runBenchmark(size: Int = 10): Unit = {
     println(s"Running benchmark for size=$size")
 
@@ -86,7 +59,8 @@ object BenchmarkApp extends App {
     runTestingScenario(orderBook, size)
   }
 
-  for (size <- List(1000, 10 * 1000, 100 * 1000, 1000 * 1000)) {
-    timed(runBenchmark(size))
+  for (size <- List(1000, 10 * 1000, 100 * 1000)) {
+    val delay = timed(runBenchmark(size))
+    println(s"*** Processing took ${delay.inSeconds}s (${delay.delay}ms)")
   }
 }
