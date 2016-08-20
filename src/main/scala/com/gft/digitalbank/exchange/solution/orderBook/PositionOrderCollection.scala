@@ -31,22 +31,41 @@ private[orderBook] abstract class PositionOrderCollection(comparator: Comparator
   def nonEmpty: Boolean = !isEmpty
 }
 
-final class BuyOrders
-    extends PositionOrderCollection(new Comparator[PositionOrder] {
+trait OrderComparator extends Comparator[PositionOrder] {
 
-      private[this] val buyOrdering = Ordering.by[PositionOrder, (Int, Long)] { buy =>
-        (buy.getDetails.getPrice * -1, buy.getTimestamp)
-      }
+  object SpecializedIntComparator extends spire.algebra.Order[Int] {
+    override def compare(x: Int, y: Int): Int = {
+      if(x > y) 1
+      else if(x == y) 0
+      else -1
+    }
+  }
 
-      override def compare(o1: PositionOrder, o2: PositionOrder): Int = buyOrdering.compare(o1, o2)
-    })
+  object SpecializedLongComparator extends spire.algebra.Order[Long] {
+    override def compare(x: Long, y: Long): Int = {
+      if(x > y) 1
+      else if(x == y) 0
+      else -1
+    }
+  }
+}
 
-final class SellOrders
-    extends PositionOrderCollection(new Comparator[PositionOrder] {
+final class BuyOrders extends PositionOrderCollection(new OrderComparator {
 
-      private[this] val sellOrdering = Ordering.by[PositionOrder, (Int, Long)] { sell =>
-        (sell.getDetails.getPrice, sell.getTimestamp)
-      }
+  override def compare(o1: PositionOrder, o2: PositionOrder): Int = {
+    SpecializedIntComparator.compare(o1.getDetails.getPrice, o2.getDetails.getPrice) match {
+      case 0 => SpecializedLongComparator.compare(o1.getTimestamp, o2.getTimestamp)
+      case o => -1 * o
+    }
+  }
+})
 
-      override def compare(o1: PositionOrder, o2: PositionOrder): Int = sellOrdering.compare(o1, o2)
-    })
+final class SellOrders extends PositionOrderCollection(new OrderComparator {
+
+  override def compare(o1: PositionOrder, o2: PositionOrder): Int = {
+    SpecializedIntComparator.compare(o1.getDetails.getPrice, o2.getDetails.getPrice) match {
+      case 0 => SpecializedLongComparator.compare(o1.getTimestamp, o2.getTimestamp)
+      case o => o
+    }
+  }
+})
