@@ -15,7 +15,7 @@ class OrderBookActor(exchangeActorRef: ActorRef, product: OrderBookProduct) exte
     case CancelOrder(c) => orderBook.handleCancellationOrder(c)
     case ModifyOrder(m) => orderBook.handleModificationOrder(m)
     case GetResults =>
-      exchangeActorRef ! ExchangeActor.RecordTransactions(orderBook.getTransactions.transactions)
+      exchangeActorRef ! ExchangeActor.RecordTransactions(orderBook.getTransactions)
       exchangeActorRef ! ExchangeActor.RecordOrderBook(orderBook.getOrderBook)
       context.stop(self)
   }
