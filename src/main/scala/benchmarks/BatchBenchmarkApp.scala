@@ -59,7 +59,7 @@ object BatchBenchmarkApp extends App with Timed with PositionOrderHelper {
     runTestingScenario(orderBook, size)
   }
 
-  for (size <- List(1000, 10 * 1000, 100 * 1000)) {
+  for (size <- List(1000, 10 * 1000, 100 * 1000, 1000 * 1000)) {
     val delay = timed(runBenchmark(size))
     println(s"*** Processing took ${delay.inSeconds}s (${delay.delay}ms)")
   }
