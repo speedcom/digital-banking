@@ -1,7 +1,6 @@
 package com.gft.digitalbank.exchange.solution
 
 import com.gft.digitalbank.exchange.model.{OrderBook, OrderEntry, Transaction}
-import com.google.common.collect.Sets
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
@@ -34,7 +33,7 @@ class SolutionResultBuilderTest extends FlatSpec with Matchers {
     // when
     val result = new SolutionResultBuilder().build(
       orderBooks = mutable.Set(emptyEntries, withEmptyOnlySells, nonEmptyEntries),
-      transactions = Sets.newHashSet[Transaction]()
+      transactions = mutable.ListBuffer.empty[Transaction]
     )
 
     // then

@@ -5,7 +5,7 @@ import com.gft.digitalbank.exchange.model.orders.{PositionOrder, Side}
 import com.gft.digitalbank.exchange.solution.OrderBookProduct
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 class OrderBookTransactorTest extends FlatSpec with Matchers {
 
@@ -32,7 +32,7 @@ class OrderBookTransactorTest extends FlatSpec with Matchers {
     val transactions = transactor.getTransactions
 
     // then
-    transactions.transactions.asScala.map(_.getId) shouldBe Set(1, 2)
+    transactions.transactions.map(_.getId) shouldBe ListBuffer(2, 1)
   }
 
   private def buildPositionOrder(side: Side, id: Int) = {

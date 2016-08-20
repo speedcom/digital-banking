@@ -16,7 +16,7 @@ class MutableOrderBookTest extends FlatSpec with Matchers {
     val finalOrderBook    = googleOrderBook.getOrderBook
 
     // then
-    finalTransactions.transactions.size() shouldBe 0
+    finalTransactions.transactions.size   shouldBe 0
     finalOrderBook.getBuyEntries.size     shouldBe 0
     finalOrderBook.getSellEntries.size    shouldBe 0
   }

@@ -1,12 +1,10 @@
 package com.gft.digitalbank.exchange.solution
 
-import java.util
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.gft.digitalbank.exchange.listener.ProcessingListener
 import com.gft.digitalbank.exchange.model.orders.{CancellationOrder, ModificationOrder, PositionOrder, Side}
 import com.gft.digitalbank.exchange.model.{OrderBook, Transaction}
-import com.google.common.collect.Sets
+import com.gft.digitalbank.exchange.solution.orderBook.Transactions
 
 import scala.collection.mutable
 
@@ -58,8 +56,8 @@ class ExchangeActor extends Actor with ActorLogging {
   }
 
   @inline
-  private[this] def handleRecordTransactions(data: Data, ts: util.HashSet[Transaction]): Unit = {
-    data.createdTransactions.addAll(ts)
+  private[this] def handleRecordTransactions(data: Data, ts: Transactions): Unit = {
+    data.createdTransactions.prependAll(ts.transactions)
   }
 
   @inline
@@ -102,7 +100,7 @@ object ExchangeActor {
                           activeBrokers: mutable.Set[Broker] = mutable.Set.empty[Broker],
                           orderBookActors: mutable.Map[OrderBookProduct, ActorRef] = mutable.Map(),
                           createdOrderBooks: mutable.Set[OrderBook] = mutable.Set.empty[OrderBook],
-                          createdTransactions: util.HashSet[Transaction] = Sets.newHashSet[Transaction]())
+                          createdTransactions: mutable.ListBuffer[Transaction] = mutable.ListBuffer.empty[Transaction])
 
   sealed trait ExchangeCommand
 
@@ -112,10 +110,10 @@ object ExchangeActor {
   case object Start                                           extends ExchangeCommand
 
   // Active state
-  case class ProcessModificationOrder(mo: ModificationOrder)             extends ExchangeCommand
-  case class ProcessPositionOrder(po: PositionOrder)                     extends ExchangeCommand
-  case class ProcessCancellationOrder(co: CancellationOrder)             extends ExchangeCommand
-  case class BrokerStopped(broker: Broker)                               extends ExchangeCommand
-  case class RecordTransactions(transactions: util.HashSet[Transaction]) extends ExchangeCommand
-  case class RecordOrderBook(orderBook: OrderBook)                       extends ExchangeCommand
+  case class ProcessModificationOrder(mo: ModificationOrder)  extends ExchangeCommand
+  case class ProcessPositionOrder(po: PositionOrder)          extends ExchangeCommand
+  case class ProcessCancellationOrder(co: CancellationOrder)  extends ExchangeCommand
+  case class BrokerStopped(broker: Broker)                    extends ExchangeCommand
+  case class RecordTransactions(transactions: Transactions)   extends ExchangeCommand
+  case class RecordOrderBook(orderBook: OrderBook)            extends ExchangeCommand
 }

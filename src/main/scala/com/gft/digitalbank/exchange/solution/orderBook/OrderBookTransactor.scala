@@ -1,27 +1,27 @@
 package com.gft.digitalbank.exchange.solution.orderBook
 
-import java.util.{HashSet => JHashSet}
-
 import com.gft.digitalbank.exchange.model.Transaction
 import com.gft.digitalbank.exchange.model.orders.PositionOrder
 import com.gft.digitalbank.exchange.solution.OrderBookProduct
-import com.google.common.collect.Sets
+
+import scala.collection.mutable
 
 private[orderBook] final class OrderBookTransactor(product: OrderBookProduct) {
 
-  private[this] val transactions = Sets.newHashSet[Transaction]()
+  private[this] val transactions = mutable.ListBuffer.empty[Transaction]
 
   def getTransactions: Transactions = Transactions(transactions)
 
   def addTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: AmountLimit, priceLimit: PriceLimit): Boolean = {
     val t = buildTransaction(buy, sell, amountLimit, priceLimit)
-    transactions.add(t)
+    transactions prepend t
+    true
   }
 
   private[this] def buildTransaction(buy: PositionOrder, sell: PositionOrder, amountLimit: AmountLimit, priceLimit: PriceLimit) = {
     Transaction
       .builder()
-      .id(transactions.size() + 1)
+      .id(transactions.size + 1)
       .amount(amountLimit.amount)
       .price(priceLimit.price)
       .brokerBuy(buy.getBroker)
@@ -33,4 +33,4 @@ private[orderBook] final class OrderBookTransactor(product: OrderBookProduct) {
   }
 }
 
-case class Transactions(transactions: JHashSet[Transaction]) extends AnyVal
+case class Transactions(transactions: mutable.ListBuffer[Transaction]) extends AnyVal
